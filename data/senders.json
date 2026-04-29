@@ -1,0 +1,54 @@
+[
+  {
+    "name": "LLC PESKOVSKIY GLASS PLANT",
+    "aliases": ["PESKOVSKIY GLASS"],
+    "address": {"street": "TETEREVSKAYA 1", "city": "BUCHA", "country": "UA", "postal_code": "07820"}
+  },
+  {
+    "name": "TOV \"NESTLE UKRAINE\"",
+    "aliases": ["NESTLE UKRAINE"],
+    "address": {"street": "VELYKA VASYLKIVSKA 139", "city": "KYIV", "country": "UA", "postal_code": "03150"}
+  },
+  {
+    "name": "CITRONEX TRANS ENERGY SP. Z O.O.",
+    "aliases": ["CITRONEX TRANS ENERGY"],
+    "identity_type": "NIP",
+    "identity_number": "6152046672",
+    "address": {"street": "Slowanska 13", "city": "Zgorzelec", "country": "PL", "postal_code": "59-900"}
+  },
+  {
+    "name": "Borchers Baumschulen Inhaber Dirk Borchers",
+    "aliases": ["Borchers Baumschulen"],
+    "address": {"street": "Woldlinie 64", "city": "Bad Zwischenahn", "country": "DE", "postal_code": "26160"}
+  },
+  {
+    "name": "Schwarze & Cons. GmbH",
+    "aliases": ["Schwarze Cons"],
+    "address": {"street": "Afrikastrasse 4", "city": "HAMBURG", "country": "DE", "postal_code": "20457"}
+  },
+  {
+    "name": "LLC \"KOSTOPIL PLYWOOD PLANT\"",
+    "aliases": ["KOSTOPIL PLYWOOD"],
+    "address": {"street": "BUROVA 9", "city": "KOSTOPIL", "country": "UA", "postal_code": "35000"}
+  },
+  {
+    "name": "\"ZUNAMI\" LLC.",
+    "aliases": ["ZUNAMI LLC", "ZUNAMI"],
+    "address": {"street": "SELYANSKA 48A", "city": "ROZHYSHCHE", "country": "UA", "postal_code": "45100"}
+  },
+  {
+    "name": "TOV \"VERBA-VV\"",
+    "aliases": ["VERBA VV", "VERBA-VV"],
+    "address": {"street": "VOKZALNA 9", "city": "LYUBYTIV", "country": "UA", "postal_code": "45063"}
+  },
+  {
+    "name": "FOP PAITSUN VOLODYMYR FEDOROVYCH",
+    "aliases": ["FOP PAITSUN"],
+    "address": {"street": "Tsentralna 1A", "city": "Zapillya", "country": "UA", "postal_code": "11312"}
+  },
+  {
+    "name": "SCA LOGISTICS GMBH",
+    "aliases": ["SCA Logistics"],
+    "address": {"street": "Ostuferhafen 22", "city": "Kiel", "country": "DE", "postal_code": "24149"}
+  }
+]
