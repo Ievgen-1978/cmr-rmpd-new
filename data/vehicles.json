@@ -1,0 +1,15 @@
+[
+  {"truck": "AC1487EK", "trailer": "AC5995XP", "gps": "Z24-SY49GF-1", "gps_backup": "M24-AK49WT-2"},
+  {"truck": "AC0908CI", "trailer": "AC9189XP", "gps": "Z24-SY49GG-0", "gps_backup": "M24-CM97HG-9"},
+  {"truck": "AC8350HE", "trailer": "AC6072XF", "gps": "Z24-SY49KG-4", "gps_backup": "M23-AY61BW-1"},
+  {"truck": "AC1340BO", "trailer": "AC3848XP", "gps": "Z24-SY49FT-6", "gps_backup": "M24-CP62HG-0"},
+  {"truck": "AC8230BE", "trailer": "AC4069XX", "gps": "Z24-SY49FP-0", "gps_backup": "M25-AA43CA-6"},
+  {"truck": "AC2068BT", "trailer": "AC0233XT", "gps": "Z24-SY49FS-7", "gps_backup": "M24-AZ75SC-9"},
+  {"truck": "AC8317EI", "trailer": "AC1939XP", "gps": "Z24-SY49GE-2", "gps_backup": "M24-CX21KE-6"},
+  {"truck": "AC7124CM", "trailer": "AC2897XF", "gps": "Z24-SY49GH-9", "gps_backup": "M24-AF92YY-8"},
+  {"truck": "AC9854HC", "trailer": "AC4082XF", "gps": "Z24-SY49GM-4", "gps_backup": "M24-AE05GF-6"},
+  {"truck": "AC7198HE", "trailer": "AC9399XP", "gps": "Z24-SY49KH-3", "gps_backup": "M21-AX43TK-8"},
+  {"truck": "AC9399CI", "trailer": "AC9898XP", "gps": "Z24-SY49GC-4", "gps_backup": "M24-AN71BC-2"},
+  {"truck": "AC2430CH", "trailer": "AC2435XP", "gps": "Z24-SY49GA-6", "gps_backup": "M25-CM49NZ-0"},
+  {"truck": "AC5600CI", "trailer": "AC0598XF", "gps": "Z24-SY49GB-5", "gps_backup": "M25-AB29SN-2"}
+]
