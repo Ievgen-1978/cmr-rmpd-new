@@ -2,9 +2,11 @@ import os
 import base64
 import json
 import traceback
+import io
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import anthropic
+from PIL import Image
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
@@ -47,18 +49,37 @@ def get_vehicle_gps(truck, vehicles):
             return v.get('gps', ''), v.get('gps_backup', '')
     return '', ''
 
-PROMPT = """Це міжнародна товарно-транспортна накладна (CMR). Витягни дані і поверни ТІЛЬКИ JSON:
+def compress_image(file_bytes, max_bytes=4*1024*1024):
+    img = Image.open(io.BytesIO(file_bytes))
+    if img.mode in ('RGBA', 'P'):
+        img = img.convert('RGB')
+    quality = 85
+    while quality >= 40:
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=quality)
+        if buf.tell() <= max_bytes:
+            return buf.getvalue(), 'image/jpeg'
+        quality -= 10
+    img.thumbnail((2000, 2000), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format='JPEG', quality=70)
+    return buf.getvalue(), 'image/jpeg'
 
-ВАЖЛИВО:
-- Поле 1 = ВІДПРАВНИК (хто відправляє вантаж, зазвичай в Україні)
-- Поле 2 = ОДЕРЖУВАЧ (хто отримує вантаж, зазвичай за кордоном)
-- Поле 3 = МІСЦЕ ДОСТАВКИ (місто/адреса де розвантажують)
-- Поле 4 = МІСЦЕ ЗАВАНТАЖЕННЯ (де і коли забрали вантаж)
-- Поле 16 = ПЕРЕВІЗНИК
+PROMPT = """Це міжнародна товарно-транспортна накладна (CMR). Витягни дані і поверни ТІЛЬКИ JSON без коментарів і без markdown.
+
+ВАЖЛИВО — правила полів CMR:
+- Поле 1 = ВІДПРАВНИК (sender) — хто відправляє вантаж
+- Поле 2 = ОДЕРЖУВАЧ (receiver) — хто отримує вантаж  
+- Поле 3 = МІСЦЕ ДОСТАВКИ — адреса куди везуть (не умови оплати DAP/FOB/EXW)
+- Поле 4 = МІСЦЕ І ДАТА ЗАВАНТАЖЕННЯ
 - Поле 9 = НАЙМЕНУВАННЯ ВАНТАЖУ
-- Поле 11 = ВАГА БРУТТО (кг)
-- Умови оплати (DAP, FOB, EXW тощо) НЕ є місцем доставки
+- Поле 10 = КОД ТОВАРУ (статистичний номер CN)
+- Поле 11 = ВАГА БРУТТО в кг
+- Поле 12 = ОБ'ЄМ в м³
+- Поле 16 = ПЕРЕВІЗНИК — це завжди TZOV SMART TRANS HRUP, не плутати з відправником/одержувачем
+- Умови оплати (DAP, FOB, EXW, FCA тощо) НЕ є місцем доставки — ігноруй їх для поля delivery_place
 
+JSON який треба повернути:
 {
   "cmr_number": "",
   "sender_name": "",
@@ -74,7 +95,7 @@ PROMPT = """Це міжнародна товарно-транспортна на
   "goods": "",
   "goods_code": "",
   "weight_kg": "",
-  "quantity": "",
+  "volume_m3": "",
   "loading_date": "",
   "invoice_number": "",
   "payment_terms": ""
@@ -101,11 +122,16 @@ def extract():
             return jsonify({"error": "Файл не знайдено"}), 400
 
         f = request.files['file']
-        b64 = base64.standard_b64encode(f.read()).decode()
+        file_bytes = f.read()
         mt = f.content_type or 'image/jpeg'
-        ci = {"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}}
+
         if 'pdf' in mt:
-            ci = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": b64}}
+            ci = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": base64.standard_b64encode(file_bytes).decode()}}
+        else:
+            if len(file_bytes) > 4 * 1024 * 1024:
+                file_bytes, mt = compress_image(file_bytes)
+            b64 = base64.standard_b64encode(file_bytes).decode()
+            ci = {"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}}
 
         client = anthropic.Anthropic(api_key=key)
         msg = client.messages.create(
@@ -122,25 +148,20 @@ def extract():
         carrier = load_catalog('carrier.json')
         warnings = []
 
-        # Перевізник з каталогу
         if isinstance(carrier, dict):
-            data['carrier_name'] = carrier.get('name', '')
             addr = carrier.get('address', {})
+            data['carrier_name'] = carrier.get('name', '')
             data['carrier_address'] = f"{addr.get('street','')} {addr.get('house','')}, {addr.get('city','')}, {addr.get('country','')}, {addr.get('postal_code','')}"
             data['carrier_id'] = carrier.get('identity_number', '')
 
-        # GPS з каталогу авто
         truck = data.get('truck_number', '').replace(' ', '')
         gps, gps_backup = get_vehicle_gps(truck, vehicles)
         data['gps'] = gps
         data['gps_backup'] = gps_backup
+        data['vehicle_verified'] = bool(gps)
         if truck and not gps:
             warnings.append(f"Авто {truck} не знайдено в каталозі — GPS невідомий")
-            data['vehicle_verified'] = False
-        else:
-            data['vehicle_verified'] = bool(gps)
 
-        # Відправник
         sender_match = find_in_catalog(data.get('sender_name', ''), senders)
         data['sender_verified'] = bool(sender_match)
         if sender_match:
@@ -148,7 +169,6 @@ def extract():
         elif data.get('sender_name'):
             warnings.append(f"Відправник '{data['sender_name']}' — новий, немає в каталозі")
 
-        # Одержувач
         receiver_match = find_in_catalog(data.get('receiver_name', ''), receivers)
         data['receiver_verified'] = bool(receiver_match)
         if receiver_match:
@@ -168,15 +188,8 @@ def add_sender():
     try:
         body = request.get_json()
         senders = load_catalog('senders.json')
-        new_entry = {
-            "name": body.get('name', ''),
-            "aliases": body.get('aliases', []),
-            "address": body.get('address', {})
-        }
-        senders.append(new_entry)
-        if save_catalog('senders.json', senders):
-            return jsonify({"ok": True, "message": "Відправника додано"})
-        return jsonify({"ok": False, "message": "Помилка збереження"}), 500
+        senders.append({"name": body.get('name',''), "aliases": body.get('aliases',[]), "address": body.get('address',{})})
+        return jsonify({"ok": save_catalog('senders.json', senders), "message": "Відправника додано"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -185,15 +198,8 @@ def add_receiver():
     try:
         body = request.get_json()
         receivers = load_catalog('receivers.json')
-        new_entry = {
-            "name": body.get('name', ''),
-            "aliases": body.get('aliases', []),
-            "address": body.get('address', {})
-        }
-        receivers.append(new_entry)
-        if save_catalog('receivers.json', receivers):
-            return jsonify({"ok": True, "message": "Одержувача додано"})
-        return jsonify({"ok": False, "message": "Помилка збереження"}), 500
+        receivers.append({"name": body.get('name',''), "aliases": body.get('aliases',[]), "address": body.get('address',{})})
+        return jsonify({"ok": save_catalog('receivers.json', receivers), "message": "Одержувача додано"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -202,16 +208,13 @@ def add_vehicle():
     try:
         body = request.get_json()
         vehicles = load_catalog('vehicles.json')
-        new_entry = {
-            "truck": body.get('truck', '').upper().replace(' ', ''),
-            "trailer": body.get('trailer', '').upper().replace(' ', ''),
-            "gps": body.get('gps', ''),
-            "gps_backup": body.get('gps_backup', '')
-        }
-        vehicles.append(new_entry)
-        if save_catalog('vehicles.json', vehicles):
-            return jsonify({"ok": True, "message": "Авто додано"})
-        return jsonify({"ok": False, "message": "Помилка збереження"}), 500
+        vehicles.append({
+            "truck": body.get('truck','').upper().replace(' ',''),
+            "trailer": body.get('trailer','').upper().replace(' ',''),
+            "gps": body.get('gps',''),
+            "gps_backup": body.get('gps_backup','')
+        })
+        return jsonify({"ok": save_catalog('vehicles.json', vehicles), "message": "Авто додано"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
