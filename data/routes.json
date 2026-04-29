@@ -1,0 +1,29 @@
+[
+  {
+    "name": "UA→DE/NL/DK транзит",
+    "direction": 1,
+    "entrance": {"place": "Dorohusk - Jogodzin", "road": "DK12", "province": "lubelskie"},
+    "exit": {"place": "Świecko - Frankfurt nO", "road": "A2(E30)", "province": "lubuskie"}
+  },
+  {
+    "name": "DE/NL/DK→UA транзит",
+    "direction": 2,
+    "entrance": {"place": "Świecko - Frankfurt nO", "road": "A2(E30)", "province": "lubuskie"},
+    "exit": {"place": "Dorohusk - Jogodzin", "road": "DK12", "province": "lubelskie"}
+  },
+  {
+    "name": "PL→UA двостороннє",
+    "direction": 2,
+    "exit": {"place": "Medyka - Szeginie", "road": "DK28", "province": "podkarpackie"}
+  },
+  {
+    "name": "DE→PL через захід",
+    "direction": 2,
+    "entrance": {"place": "Kołbaskowo - Pomellen", "road": "A6", "province": "zachodniopomorskie"}
+  },
+  {
+    "name": "CH/AT→PL через Jędrzychowice",
+    "direction": 2,
+    "entrance": {"place": "Jędrzychowice - Ludwigsdorf", "road": "A4", "province": "dolnoslaskie"}
+  }
+]
