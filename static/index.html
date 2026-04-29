@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMR → RMPD</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; padding: 2rem 1rem; }
+.container { max-width: 700px; margin: 0 auto; }
+h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
+.sub { font-size: 14px; color: #666; margin-bottom: 2rem; }
+.card { background: #fff; border: 0.5px solid #e0e0de; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+.card-title { font-size: 12px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+.upload-zone { border: 1px dashed #ccc; border-radius: 8px; padding: 2.5rem; text-align: center; cursor: pointer; background: #fafaf9; transition: background 0.15s; }
+.upload-zone:hover { background: #f0f0ee; }
+.upload-zone svg { color: #aaa; margin-bottom: 8px; }
+.upload-zone p { font-size: 14px; color: #666; }
+.upload-zone .hint { font-size: 12px; color: #aaa; margin-top: 4px; }
+.preview { max-width: 100%; border-radius: 8px; margin-top: 12px; max-height: 200px; object-fit: cover; display: none; }
+.btn { display: block; width: 100%; padding: 11px; font-size: 14px; font-weight: 500; border: none; border-radius: 8px; cursor: pointer; margin-top: 12px; transition: opacity 0.15s; }
+.btn-primary { background: #1a1a1a; color: #fff; }
+.btn-primary:hover { opacity: 0.85; }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-copy { background: transparent; border: 0.5px solid #ccc; color: #444; font-size: 13px; width: auto; padding: 6px 14px; }
+.btn-copy:hover { background: #f5f5f3; }
+.status { font-size: 13px; padding: 8px 12px; border-radius: 8px; margin-top: 10px; }
+.status.loading { background: #e8f0fe; color: #1a56db; }
+.status.success { background: #e3fcef; color: #0e6027; }
+.status.error { background: #fce8e8; color: #b91c1c; }
+.result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+.badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: #e3fcef; color: #0e6027; margin-left: 8px; }
+.row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 0.5px solid #f0f0ee; gap: 12px; }
+.row:last-child { border-bottom: none; }
+.row-label { font-size: 12px; color: #888; min-width: 160px; padding-top: 1px; }
+.row-value { font-size: 14px; color: #1a1a1a; font-weight: 500; text-align: right; flex: 1; }
+.steps { font-size: 13px; color: #555; line-height: 2; }
+.steps strong { color: #1a1a1a; }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>CMR → RMPD</h1>
+  <p class="sub">Завантаж CMR — отримай готові дані для реєстрації перевезення</p>
+
+  <div class="card">
+    <div class="card-title">Крок 1 — Завантажити CMR</div>
+    <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+      </svg>
+      <p>Натисни або перетягни файл</p>
+      <p class="hint">Фото (JPG, PNG) або PDF</p>
+    </div>
+    <input type="file" id="fileInput" accept="image/*,application/pdf" style="display:none" onchange="handleFile(this)">
+    <img id="preview" class="preview">
+    <div id="status"></div>
+    <button class="btn btn-primary" id="extractBtn" style="display:none" onclick="extract()">
+      Витягти дані з CMR
+    </button>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <div class="result-header">
+      <div class="card-title" style="margin-bottom:0">Крок 2 — Дані для RMPD <span class="badge">готово</span></div>
+      <button class="btn btn-copy" onclick="copyAll()">Копіювати</button>
+    </div>
+    <div id="resultRows"></div>
+  </div>
+
+  <div class="card" id="stepsCard" style="display:none">
+    <div class="card-title">Крок 3 — Внести в портал</div>
+    <div class="steps">
+      1. Відкрий <strong>e-GITD → Nowe zgłoszenie</strong><br>
+      2. Вибери тип: <strong>Transport tranzytowy</strong><br>
+      3. Встав дані зверху<br>
+      4. Натисни <strong>Zarejestruj</strong> — отримаєш номер RMPD
+    </div>
+  </div>
+</div>
+
+<script>
+const LABELS = {
+  cmr_number: '№ CMR',
+  carrier_name: 'Перевізник',
+  carrier_address: 'Адреса перевізника',
+  sender_name: 'Відправник',
+  sender_address: 'Адреса відправника',
+  receiver_name: 'Одержувач',
+  receiver_address: 'Адреса одержувача',
+  loading_country: 'Країна завантаження',
+  delivery_country: 'Країна доставки',
+  loading_place: 'Місце завантаження',
+  delivery_place: 'Місце доставки',
+  truck_number: 'Номер авто',
+  trailer_number: 'Номер причепа',
+  goods: 'Товар',
+  weight_kg: 'Вага, кг',
+  quantity: 'Кількість',
+  loading_date: 'Дата завантаження',
+  cmr_date: 'Дата CMR'
+};
+
+let lastData = {};
+let selectedFile = null;
+
+function handleFile(input) {
+  selectedFile = input.files[0];
+  if (!selectedFile) return;
+  if (selectedFile.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = document.getElementById('preview');
+      img.src = e.target.result;
+      img.style.display = 'block';
+    };
+    reader.readAsDataURL(selectedFile);
+  }
+  setStatus('success', 'Файл завантажено: ' + selectedFile.name);
+  document.getElementById('extractBtn').style.display = 'block';
+}
+
+async function extract() {
+  if (!selectedFile) return;
+  const btn = document.getElementById('extractBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Аналізую...';
+  setStatus('loading', 'Надсилаю CMR на аналіз...');
+
+  const form = new FormData();
+  form.append('file', selectedFile);
+
+  try {
+    const resp = await fetch('/extract', { method: 'POST', body: form });
+    if (!resp.ok) throw new Error('Сервер повернув помилку ' + resp.status);
+    lastData = await resp.json();
+    showResult(lastData);
+    setStatus('success', 'Дані успішно витягнуто');
+  } catch (e) {
+    setStatus('error', 'Помилка: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'Витягти дані з CMR';
+}
+
+function showResult(data) {
+  const rows = Object.entries(LABELS).map(([k, label]) => {
+    const val = data[k] || '—';
+    return `<div class="row"><span class="row-label">${label}</span><span class="row-value">${val}</span></div>`;
+  }).join('');
+  document.getElementById('resultRows').innerHTML = rows;
+  document.getElementById('resultCard').style.display = 'block';
+  document.getElementById('stepsCard').style.display = 'block';
+}
+
+function copyAll() {
+  const text = Object.entries(LABELS).map(([k, l]) => `${l}: ${lastData[k] || '—'}`).join('\n');
+  navigator.clipboard.writeText(text).then(() => alert('Скопійовано!')).catch(() => {});
+}
+
+function setStatus(type, msg) {
+  document.getElementById('status').innerHTML = `<div class="status ${type}">${msg}</div>`;
+}
+</script>
+</body>
+</html>
