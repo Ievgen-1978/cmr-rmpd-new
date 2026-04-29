@@ -126,7 +126,17 @@ def extract():
         mt = f.content_type or 'image/jpeg'
 
         if 'pdf' in mt:
-            ci = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": base64.standard_b64encode(file_bytes).decode()}}
+    if len(file_bytes) > 4 * 1024 * 1024:
+        import fitz
+        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        page = doc[0]
+        mat = fitz.Matrix(2, 2)
+        pix = page.get_pixmap(matrix=mat)
+        img_bytes = pix.tobytes("jpeg")
+        b64 = base64.standard_b64encode(img_bytes).decode()
+        ci = {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}}
+    else:
+        ci = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": base64.standard_b64encode(file_bytes).decode()}}
         else:
             if len(file_bytes) > 4 * 1024 * 1024:
                 file_bytes, mt = compress_image(file_bytes)
