@@ -8,8 +8,6 @@ import anthropic
 app = Flask(__name__, static_folder='static')
 CORS(app)
 
-client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-
 PROMPT = """Витягни з цього CMR документа наступні дані і поверни ТІЛЬКИ JSON без жодних коментарів, пояснень чи markdown:
 {
   "cmr_number": "",
@@ -39,6 +37,10 @@ def index():
 
 @app.route('/extract', methods=['POST'])
 def extract():
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return jsonify({'error': 'API ключ не налаштовано'}), 500
+
     if 'file' not in request.files:
         return jsonify({'error': 'Файл не знайдено'}), 400
 
@@ -58,6 +60,7 @@ def extract():
             "source": {"type": "base64", "media_type": media_type, "data": b64}
         }
 
+    client = anthropic.Anthropic(api_key=api_key)
     message = client.messages.create(
         model="claude-opus-4-5",
         max_tokens=1024,
