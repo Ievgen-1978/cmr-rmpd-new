@@ -1,0 +1,35 @@
+[
+  {
+    "name": "JUTRO GmbH",
+    "aliases": ["JUTRO"],
+    "address": {"street": "Gewerbering 1", "city": "Juterbog", "country": "DE", "postal_code": "14913"}
+  },
+  {
+    "name": "\"NESTLE DEUTCHLAND A.G.\"",
+    "aliases": ["NESTLE DEUTSCHLAND"],
+    "address": {"street": "Baseler Str. 46", "city": "FRANKFURT AM MAIN", "country": "DE", "postal_code": "60329"}
+  },
+  {
+    "name": "SOCAR ENERGY UKRAINE LLC",
+    "aliases": ["SOCAR ENERGY"],
+    "address": {"street": "BOHDANA KHMELNYTSKOGO 52-A", "city": "KYIV", "country": "UA", "postal_code": "01054"}
+  },
+  {
+    "name": "LLC \"RIVERKO.UA\"",
+    "aliases": ["RIVERKO"],
+    "address": {"street": "LISNA 13", "city": "PRILUTSKE", "country": "UA", "postal_code": "45243"}
+  },
+  {
+    "name": "LLC Coffeeton",
+    "aliases": ["COFFEETON"],
+    "address": {"street": "ZDANOVSKOI YULII 75A/125", "city": "KYIV", "country": "UA", "postal_code": "03189"}
+  },
+  {
+    "name": "Albert Karsten Holz-Importe Gmbh",
+    "aliases": ["Albert Karsten Holz"],
+    "address": {"street": "Feldlesweg 10", "city": "Bad Friedrichshall", "country": "DE", "postal_code": "74177"}
+  },
+  {
+    "name": "\"KV-Energi\" ApS.",
+    "aliases": ["KV-ENERGI", "KV Energi"],
+    "address": {"street": "Faborgvej 177", "city": "Agerbaek", "country": "DK", "postal_code": "6
