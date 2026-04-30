@@ -33,11 +33,23 @@ def find_in_catalog(name, catalog):
     if not name:
         return None
     name_upper = name.upper().strip()
+    # Точне або часткове співпадіння назви
     for item in catalog:
-        if item['name'].upper() in name_upper or name_upper in item['name'].upper():
+        cat_name = item['name'].upper()
+        if cat_name in name_upper or name_upper in cat_name:
             return item
         for alias in item.get('aliases', []):
             if alias.upper() in name_upper or name_upper in alias.upper():
+                return item
+    # Пошук по ключових словах (мінімум 2 слова збігаються)
+    name_words = set(w for w in name_upper.split() if len(w) > 3)
+    for item in catalog:
+        cat_words = set(w for w in item['name'].upper().split() if len(w) > 3)
+        if len(name_words & cat_words) >= 2:
+            return item
+        for alias in item.get('aliases', []):
+            alias_words = set(w for w in alias.upper().split() if len(w) > 3)
+            if len(name_words & alias_words) >= 2:
                 return item
     return None
 
