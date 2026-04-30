@@ -3,7 +3,7 @@ import base64
 import json
 import traceback
 import io
-import fitz  # PyMuPDF
+import fitz
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import anthropic
@@ -54,11 +54,9 @@ def get_vehicle_gps(truck, vehicles):
     if not truck:
         return '', ''
     truck_upper = truck.upper().replace(' ', '')
-    # Точне співпадіння
     for v in vehicles:
         if v['truck'].upper().replace(' ', '') == truck_upper:
             return v.get('gps', ''), v.get('gps_backup', '')
-    # Нечітке: починається з розпізнаного номера або навпаки
     for v in vehicles:
         catalog_truck = v['truck'].upper().replace(' ', '')
         if catalog_truck.startswith(truck_upper) or truck_upper.startswith(catalog_truck[:6]):
@@ -100,31 +98,30 @@ def compress_pdf_page(pix, max_bytes=4*1024*1024):
 
 PROMPT = """Це міжнародна товарно-транспортна накладна CMR. Витягни дані і поверни ТІЛЬКИ JSON без коментарів і без markdown.
 
-СТРУКТУРА ПОЛІВ CMR — читай ТІЛЬКИ вказані поля:
+СТРУКТУРА ПОЛІВ CMR:
 
-Поле 1 (лівий верх) = ВІДПРАВНИК: назва компанії + адреса + країна
-Поле 2 (під полем 1) = ОДЕРЖУВАЧ: тільки НАЗВА компанії. Адресу одержувача НЕ брати з цього поля!
-Поле 3 (під полем 2) = АДРЕСА ДОСТАВКИ: точна адреса складу куди везуть вантаж (вулиця, місто, індекс, країна)
-Поле 4 = МІСЦЕ ЗАВАНТАЖЕННЯ: місто і країна звідки забрали вантаж. Формат: "Місто, Країна". НЕ адреса одержувача!
-Поле 7 = КІЛЬКІСТЬ МІСЦЬ (число палет, коробок тощо)
+Поле 1 (лівий верх) = ВІДПРАВНИК: назва + адреса + країна
+Поле 2 (під полем 1) = ОДЕРЖУВАЧ: тільки НАЗВА. Адресу НЕ брати з поля 2!
+Поле 3 (під полем 2) = АДРЕСА ДОСТАВКИ: точна адреса складу (вулиця, місто, індекс, країна)
+Поле 4 = МІСЦЕ І ДАТА ЗАВАНТАЖЕННЯ: місто країна, дата
+Поле 7 = КІЛЬКІСТЬ МІСЦЬ
 Поле 9 = НАЙМЕНУВАННЯ ВАНТАЖУ
-Поле 11 = ВАГА БРУТТО в кг
-Поле 16 (правий верх, печатка) = ПЕРЕВІЗНИК — завжди TZOV SMART TRANS HRUP
-Поле 17 або 22 (внизу де підпис перевізника) = НОМЕРИ АВТО І ПРИЧЕПА — читай ПОВНІСТЮ всі літери і цифри
-Поле 21 = ДАТА складання CMR і місце
+Поле 11 = ВАГА БРУТТО кг
+Поле 16 = ПЕРЕВІЗНИК (завжди TZOV SMART TRANS HRUP)
+Поле 17 або 22 = НОМЕРИ АВТО І ПРИЧЕПА (повністю, всі літери і цифри)
+Поле 21 = ДАТА CMR
 
-КРИТИЧНІ ПРАВИЛА:
-1. receiver_address — брати ТІЛЬКИ з поля 3 (адреса складу призначення). НЕ з поля 2.
-2. receiver_name — брати тільки назву з поля 2.
-3. loading_place — місто звідки забрали вантаж (поле 4). НЕ адреса одержувача.
-4. loading_date — дата з поля 4 (дата завантаження). НЕ дата CMR з поля 21.
-5. cmr_date — дата з поля 21 (дата складання накладної).
-6. Номери авто — читай ПОВНІСТЮ всі літери і цифри. Наприклад AC1566EO, не AC1566. Великими літерами без пробілів.
-7. Якщо авто і причеп через "/" — формат АВТО/ПРИЧЕП.
-8. Умови оплати (DAP, FOB, EXW, FCA) — НЕ є місцем. Ігноруй.
-9. Кількість — число з одиницею (наприклад: "51 палета").
+ПРАВИЛА:
+1. receiver_address — ТІЛЬКИ з поля 3
+2. receiver_name — тільки назва з поля 2
+3. loading_place — місто з поля 4
+4. loading_date — дата з поля 4
+5. cmr_date — дата з поля 21
+6. Номери авто — ПОВНІСТЮ великими без пробілів (AC1566EO не AC1566)
+7. Умови оплати (DAP/FOB/EXW/FCA) — не є місцем, ігноруй
+8. Кількість — число з одиницею ("51 палета")
 
-JSON що треба повернути:
+JSON:
 {
   "cmr_number": "",
   "sender_name": "",
@@ -276,4 +273,13 @@ def add_vehicle():
         vehicles = load_catalog('vehicles.json')
         vehicles.append({
             "truck": body.get('truck','').upper().replace(' ',''),
-            "trailer": body.get('trailer
+            "trailer": body.get('trailer','').upper().replace(' ',''),
+            "gps": body.get('gps',''),
+            "gps_backup": body.get('gps_backup','')
+        })
+        return jsonify({"ok": save_catalog('vehicles.json', vehicles), "message": "Авто додано"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
