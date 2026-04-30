@@ -12,6 +12,7 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .sub { font-size: 14px; color: #666; margin-bottom: 2rem; }
 .card { background: #fff; border: 0.5px solid #e0e0de; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
 .card-title { font-size: 12px; font-weight: 500; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+.section-title { font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.08em; margin: 1rem 0 0.5rem; padding-bottom: 4px; border-bottom: 0.5px solid #f0f0ee; }
 .upload-zone { border: 1px dashed #ccc; border-radius: 8px; padding: 2.5rem; text-align: center; cursor: pointer; background: #fafaf9; transition: background 0.15s; }
 .upload-zone:hover { background: #f0f0ee; }
 .upload-zone svg { color: #aaa; margin-bottom: 8px; }
@@ -32,7 +33,7 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: #e3fcef; color: #0e6027; margin-left: 8px; }
 .row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 0.5px solid #f0f0ee; gap: 8px; }
 .row:last-child { border-bottom: none; }
-.row-label { font-size: 12px; color: #888; min-width: 160px; }
+.row-label { font-size: 12px; color: #888; min-width: 180px; }
 .row-value { font-size: 14px; color: #1a1a1a; font-weight: 500; text-align: right; flex: 1; }
 .row-value.field-empty { color: #b91c1c; background: #fef2f2; border-radius: 4px; padding: 2px 8px; }
 .row-value.field-unverified { color: #92400e; background: #fffbeb; border-radius: 4px; padding: 2px 8px; }
@@ -43,7 +44,6 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .steps strong { color: #1a1a1a; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
-
 /* Tabs */
 .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; }
 .tab { padding: 7px 16px; font-size: 13px; font-weight: 500; border-radius: 8px; cursor: pointer; border: 0.5px solid #e0e0de; background: #fff; color: #666; transition: all 0.15s; }
@@ -52,10 +52,8 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .tab.active .tab-count { background: rgba(255,255,255,0.2); color: #fff; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
-
-/* History list */
-.trip-item { background: #fff; border: 0.5px solid #e0e0de; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
-.trip-item:hover { border-color: #999; }
+/* History */
+.trip-item { background: #fff; border: 0.5px solid #e0e0de; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 8px; }
 .trip-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .trip-cmr { font-size: 14px; font-weight: 600; }
 .trip-status { font-size: 11px; padding: 2px 8px; border-radius: 99px; }
@@ -63,13 +61,12 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .trip-status.processing { background: #fffbeb; color: #92400e; }
 .trip-status.done { background: #e3fcef; color: #0e6027; }
 .trip-meta { font-size: 12px; color: #888; }
-.trip-actions { display: flex; gap: 6px; margin-top: 10px; }
+.trip-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
 .btn-status { font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; border: 0.5px solid #ccc; background: transparent; color: #555; }
 .btn-status:hover { background: #f5f5f3; }
 .btn-status.done { border-color: #0e6027; color: #0e6027; }
 .btn-status.done:hover { background: #e3fcef; }
 .empty-state { text-align: center; padding: 3rem 1rem; color: #aaa; font-size: 14px; }
-
 /* Modal */
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 100; }
 #modal-overlay.open { display: flex; }
@@ -90,10 +87,9 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
   <h1>CMR → RMPD</h1>
   <p class="sub">Завантаж CMR — отримай готові дані для реєстрації перевезення</p>
 
-  <!-- Tabs -->
   <div class="tabs">
     <div class="tab active" onclick="switchTab('new')">Новий рейс</div>
-    <div class="tab" onclick="switchTab('history')" id="tab-history">Рейси <span class="tab-count" id="trips-count">0</span></div>
+    <div class="tab" onclick="switchTab('history')">Рейси <span class="tab-count" id="trips-count">0</span></div>
   </div>
 
   <!-- Tab: Новий рейс -->
@@ -117,7 +113,7 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 
     <div class="card" id="resultCard" style="display:none">
       <div class="result-header">
-        <div class="card-title" style="margin-bottom:0">Крок 2 — Дані для RMPD <span class="badge">готово</span></div>
+        <div class="card-title" style="margin-bottom:0">Дані для RMPD <span class="badge">готово</span></div>
         <button class="btn btn-copy" onclick="copyAll()">Копіювати</button>
       </div>
       <div id="resultRows"></div>
@@ -127,12 +123,11 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
     </div>
 
     <div class="card" id="stepsCard" style="display:none">
-      <div class="card-title">Крок 3 — Внести в портал</div>
+      <div class="card-title">Як внести в портал RMPD</div>
       <div class="steps">
         1. Відкрий <strong>e-GITD → Nowe zgłoszenie</strong><br>
-        2. Вибери тип: <strong>Transport tranzytowy</strong><br>
-        3. Встав дані зверху<br>
-        4. Натисни <strong>Zarejestruj</strong> — отримаєш номер RMPD
+        2. Заповни дані зверху по секціях<br>
+        3. Натисни <strong>Zarejestruj</strong> — отримаєш номер RMPD
       </div>
     </div>
   </div>
@@ -156,36 +151,80 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 </div>
 
 <script>
-const LABELS = {
-  cmr_number: '№ CMR',
-  carrier_name: 'Перевізник',
-  carrier_address: 'Адреса перевізника',
-  sender_name: 'Відправник',
-  sender_address: 'Адреса відправника',
-  receiver_name: 'Одержувач',
-  receiver_address: 'Адреса одержувача',
-  loading_country: 'Країна завантаження',
-  delivery_country: 'Країна доставки',
-  loading_place: 'Місце завантаження',
-  delivery_place: 'Місце доставки',
-  truck_number: 'Номер авто',
-  trailer_number: 'Номер причепа',
-  gps: 'GPS локалізатор',
-  gps_backup: 'GPS резервний',
-  goods: 'Товар',
-  weight_kg: 'Вага, кг',
-  quantity: 'Кількість',
-  loading_date: 'Дата завантаження',
-  cmr_date: 'Дата CMR'
-};
+// Порядок полів як у формі RMPD
+const SECTIONS = [
+  {
+    title: '1. Перевізник',
+    fields: [
+      { key: 'carrier_name', label: 'Назва перевізника' },
+      { key: 'carrier_address', label: 'Адреса перевізника' },
+    ]
+  },
+  {
+    title: '2. Транспорт',
+    fields: [
+      { key: 'truck_number', label: 'Номер авто', verify: true },
+      { key: 'trailer_number', label: 'Номер причепа' },
+      { key: 'gps', label: 'GPS локалізатор', gps: true },
+      { key: 'gps_backup', label: 'GPS резервний', gps: true },
+    ]
+  },
+  {
+    title: '3. Дати транспорту',
+    fields: [
+      { key: 'loading_date', label: 'Дата початку перевезення' },
+      { key: 'end_date', label: 'Дата закінчення перевезення' },
+    ]
+  },
+  {
+    title: '3.2 Країни',
+    fields: [
+      { key: 'loading_country', label: 'Країна завантаження' },
+      { key: 'delivery_country', label: 'Країна розвантаження' },
+    ]
+  },
+  {
+    title: '3.3 Документ перевезення',
+    fields: [
+      { key: 'transport_type', label: 'Тип перевезення' },
+      { key: 'cmr_number', label: '№ CMR' },
+      { key: 'cmr_date', label: 'Дата CMR' },
+    ]
+  },
+  {
+    title: '3.7 Місце початку (завантаження)',
+    fields: [
+      { key: 'loading_place', label: 'Місце завантаження' },
+    ]
+  },
+  {
+    title: '3.8 Місце закінчення (доставки)',
+    fields: [
+      { key: 'delivery_place', label: 'Місце доставки' },
+      { key: 'border_crossing', label: 'Місце перетину кордону' },
+    ]
+  },
+  {
+    title: '4. Відправник (Nadawca)',
+    fields: [
+      { key: 'sender_name', label: 'Назва відправника', verify: true },
+      { key: 'sender_address', label: 'Адреса відправника' },
+    ]
+  },
+  {
+    title: '5. Одержувач (Odbiorca)',
+    fields: [
+      { key: 'receiver_name', label: 'Назва одержувача', verify: true },
+      { key: 'receiver_address', label: 'Адреса одержувача' },
+    ]
+  },
+];
 
 const ADD_TYPE = {
   sender_name: 'sender',
   receiver_name: 'receiver',
   truck_number: 'vehicle',
 };
-
-const GPS_FIELDS = ['gps', 'gps_backup'];
 
 let lastData = {};
 let selectedFile = null;
@@ -196,11 +235,9 @@ function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   if (tab === 'new') {
-    document.querySelector('.tab:first-child').classList.add('active');
+    document.querySelectorAll('.tab')[0].classList.add('active');
     document.getElementById('tab-new').classList.add('active');
   } else {
-    document.getElementById('tab-history').classList.add('active');
-    document.getElementById('tab-history-content') && document.getElementById('tab-history-content').classList.add('active');
     document.querySelectorAll('.tab')[1].classList.add('active');
     document.getElementById('tab-history').classList.add('active');
     renderTrips();
@@ -243,7 +280,7 @@ function renderTrips() {
         <div class="trip-status ${t.status}">${statusLabel(t.status)}</div>
       </div>
       <div class="trip-meta">${t.sender} → ${t.receiver} · ${t.date}</div>
-      ${t.rmpd ? `<div class="trip-meta" style="margin-top:4px; color:#0e6027">RMPD: ${t.rmpd}</div>` : ''}
+      ${t.rmpd ? `<div class="trip-meta" style="margin-top:4px;color:#0e6027">RMPD: ${t.rmpd}</div>` : ''}
       <div class="trip-actions">
         ${t.status === 'new' ? `<button class="btn-status" onclick="setTripStatus(${i},'processing')">→ В роботі</button>` : ''}
         ${t.status === 'processing' ? `
@@ -288,7 +325,6 @@ function viewTrip(i) {
   lastData = trips[i].data;
   switchTab('new');
   showResult(lastData);
-  document.getElementById('resultCard').style.display = 'block';
 }
 
 function handleFile(input) {
@@ -313,10 +349,8 @@ async function extract() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Аналізую...';
   setStatus('loading', 'Надсилаю CMR на аналіз...');
-
   const form = new FormData();
   form.append('file', selectedFile);
-
   try {
     const resp = await fetch('/extract', { method: 'POST', body: form });
     if (!resp.ok) throw new Error('Сервер повернув помилку ' + resp.status);
@@ -326,7 +360,6 @@ async function extract() {
   } catch (e) {
     setStatus('error', 'Помилка: ' + e.message);
   }
-
   btn.disabled = false;
   btn.innerHTML = 'Витягти дані з CMR';
 }
@@ -337,19 +370,25 @@ function showResult(data) {
     receiver_name: data.receiver_verified,
     truck_number: data.vehicle_verified,
   };
-  const rows = Object.entries(LABELS).map(([k, label]) => {
-    const val = data[k];
-    const isEmpty = !val || val.toString().trim() === '';
-    const isUnverified = (k in verifiedMap) && !isEmpty && verifiedMap[k] === false;
-    const isGps = GPS_FIELDS.includes(k) && !isEmpty;
-    const displayVal = isEmpty ? '—' : val;
-    const errClass = isEmpty ? ' field-empty' : isUnverified ? ' field-unverified' : isGps ? ' field-gps' : '';
-    const addBtn = isUnverified
-      ? `<button class="btn-add" onclick="openAddModal('${ADD_TYPE[k]}')">+ додати</button>`
-      : '';
-    return `<div class="row"><span class="row-label">${label}</span><span class="row-value${errClass}">${displayVal}</span>${addBtn}</div>`;
-  }).join('');
-  document.getElementById('resultRows').innerHTML = rows;
+
+  let html = '';
+  for (const section of SECTIONS) {
+    html += `<div class="section-title">${section.title}</div>`;
+    for (const field of section.fields) {
+      const val = data[field.key];
+      const isEmpty = !val || val.toString().trim() === '';
+      const isUnverified = field.verify && !isEmpty && verifiedMap[field.key] === false;
+      const isGps = field.gps && !isEmpty;
+      const displayVal = isEmpty ? '—' : val;
+      const errClass = isEmpty ? ' field-empty' : isUnverified ? ' field-unverified' : isGps ? ' field-gps' : '';
+      const addBtn = isUnverified && ADD_TYPE[field.key]
+        ? `<button class="btn-add" onclick="openAddModal('${ADD_TYPE[field.key]}')">+ додати</button>`
+        : '';
+      html += `<div class="row"><span class="row-label">${field.label}</span><span class="row-value${errClass}">${displayVal}</span>${addBtn}</div>`;
+    }
+  }
+
+  document.getElementById('resultRows').innerHTML = html;
   document.getElementById('resultCard').style.display = 'block';
   document.getElementById('stepsCard').style.display = 'block';
 }
@@ -399,11 +438,7 @@ async function submitAdd() {
   let url, body;
   if (modalType === 'sender' || modalType === 'receiver') {
     url = modalType === 'sender' ? '/add-sender' : '/add-receiver';
-    body = {
-      name: document.getElementById('add-name').value.trim(),
-      aliases: [],
-      address: document.getElementById('add-address').value.trim(),
-    };
+    body = { name: document.getElementById('add-name').value.trim(), aliases: [], address: document.getElementById('add-address').value.trim() };
   } else {
     url = '/add-vehicle';
     body = {
@@ -414,11 +449,7 @@ async function submitAdd() {
     };
   }
   try {
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const result = await resp.json();
     if (result.ok) {
       if (modalType === 'sender') lastData.sender_verified = true;
@@ -436,15 +467,20 @@ async function submitAdd() {
 }
 
 function copyAll() {
-  const text = Object.entries(LABELS).map(([k, l]) => `${l}: ${lastData[k] || '—'}`).join('\n');
-  navigator.clipboard.writeText(text).then(() => alert('Скопійовано!')).catch(() => {});
+  let lines = [];
+  for (const section of SECTIONS) {
+    lines.push(`\n${section.title}`);
+    for (const field of section.fields) {
+      lines.push(`${field.label}: ${lastData[field.key] || '—'}`);
+    }
+  }
+  navigator.clipboard.writeText(lines.join('\n')).then(() => alert('Скопійовано!')).catch(() => {});
 }
 
 function setStatus(type, msg) {
   document.getElementById('status').innerHTML = `<div class="status ${type}">${msg}</div>`;
 }
 
-// Init
 updateTripCount();
 </script>
 </body>
