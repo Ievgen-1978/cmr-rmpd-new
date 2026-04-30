@@ -10,9 +10,11 @@
     "address": {"street": "Baseler Str. 46", "city": "FRANKFURT AM MAIN", "country": "DE", "postal_code": "60329"}
   },
   {
-    "name": "SOCAR ENERGY UKRAINE LLC",
-    "aliases": ["SOCAR ENERGY"],
-    "address": {"street": "BOHDANA KHMELNYTSKOGO 52-A", "city": "KYIV", "country": "UA", "postal_code": "01054"}
+    {
+  "name": "SOCAR ENERGY UKRAINE LLC",
+  "aliases": ["SOCAR ENERGY", "SOCAR UKRAINE", "SOCAR", "ТД СОКАР УКРАЇНА", "SOCAR ENERGY UKRAINE"],
+  "address": {"street": "BOHDANA KHMELNYTSKOGO 52-A", "city": "KYIV", "country": "UA", "postal_code": "01054"}
+
   },
   {
     "name": "LLC \"RIVERKO.UA\"",
