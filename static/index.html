@@ -38,8 +38,14 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .row-value.field-empty { color: #b91c1c; background: #fef2f2; border-radius: 4px; padding: 2px 8px; }
 .row-value.field-unverified { color: #92400e; background: #fffbeb; border-radius: 4px; padding: 2px 8px; }
 .row-value.field-gps { color: #1a6027; background: #e3fcef; border-radius: 4px; padding: 2px 8px; font-size: 12px; }
-.row-input { font-size: 14px; color: #1a1a1a; font-weight: 500; text-align: right; flex: 1; border: 0.5px solid #ccc; border-radius: 6px; padding: 4px 8px; outline: none; font-family: inherit; background: #fafaf9; }
-.row-input:focus { border-color: #1a1a1a; background: #fff; }
+.row-input {
+  font-size: 14px; color: #1a1a1a; font-weight: 500; text-align: right; flex: 1;
+  border: 0.5px solid #a78bfa; border-radius: 6px; padding: 4px 8px;
+  outline: none; font-family: inherit; background: #f5f3ff;
+  cursor: text;
+}
+.row-input:focus { border-color: #7c3aed; background: #fff; box-shadow: 0 0 0 2px rgba(124,58,237,0.1); }
+.edit-hint { font-size: 10px; color: #a78bfa; margin-left: 4px; white-space: nowrap; flex-shrink: 0; }
 .btn-add { font-size: 11px; padding: 3px 10px; border: 0.5px solid #d97706; color: #d97706; background: transparent; border-radius: 99px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
 .btn-add:hover { background: #fffbeb; }
 .steps { font-size: 13px; color: #555; line-height: 2; }
@@ -188,7 +194,7 @@ const SECTIONS = [
   {
     title: '3.7 Місце початку (завантаження)',
     fields: [
-      { key: 'loading_place', label: 'Місце завантаження' },
+      { key: 'loading_place', label: 'Місце завантаження', editable: true, hint: true },
     ]
   },
   {
@@ -214,6 +220,8 @@ const SECTIONS = [
   },
 ];
 
+const EDITABLE_KEYS = ['loading_date', 'end_date', 'loading_place'];
+
 const ADD_TYPE = {
   sender_name: 'sender',
   receiver_name: 'receiver',
@@ -224,6 +232,13 @@ let lastData = {};
 let selectedFile = null;
 let modalType = null;
 let trips = JSON.parse(localStorage.getItem('trips') || '[]');
+
+function syncEditableFields() {
+  EDITABLE_KEYS.forEach(key => {
+    const el = document.getElementById('edit-' + key);
+    if (el) lastData[key] = el.value;
+  });
+}
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -239,12 +254,7 @@ function switchTab(tab) {
 }
 
 function saveTrip() {
-  // Зберігаємо відредаговані дати
-  const ldInput = document.getElementById('edit-loading_date');
-  const edInput = document.getElementById('edit-end_date');
-  if (ldInput) lastData.loading_date = ldInput.value;
-  if (edInput) lastData.end_date = edInput.value;
-
+  syncEditableFields();
   const trip = {
     id: Date.now(),
     cmr: lastData.cmr_number || '—',
@@ -254,7 +264,7 @@ function saveTrip() {
     date: lastData.loading_date || new Date().toLocaleDateString('uk'),
     status: 'new',
     rmpd: '',
-    data: lastData,
+    data: { ...lastData },
     created: new Date().toLocaleString('uk')
   };
   trips.unshift(trip);
@@ -322,7 +332,7 @@ function deleteTrip(i) {
 }
 
 function viewTrip(i) {
-  lastData = trips[i].data;
+  lastData = { ...trips[i].data };
   switchTab('new');
   showResult(lastData);
 }
@@ -382,10 +392,15 @@ function showResult(data) {
       const displayVal = isEmpty ? '' : val;
 
       if (field.editable) {
-        // Редаговане поле з input
-        html += `<div class="row">
+        const isPoland = field.hint && (data.loading_country || '').toLowerCase().includes('pol');
+        const plHint = isPoland
+          ? `<div style="font-size:11px;color:#7c3aed;padding:2px 0 4px;text-align:right">⚠ Польща: вкажи вулицю, місто, індекс, воєводство</div>`
+          : '';
+        html += `<div class="row" style="flex-wrap:wrap">
           <span class="row-label">${field.label}</span>
-          <input class="row-input" id="edit-${field.key}" value="${displayVal}" placeholder="введіть дату" onchange="lastData['${field.key}']=this.value">
+          <input class="row-input" id="edit-${field.key}" value="${displayVal}" placeholder="введіть вручну" oninput="lastData['${field.key}']=this.value">
+          <span class="edit-hint">✎</span>
+          ${plHint ? `</div><div style="padding:0 0 4px">${plHint}` : ''}
         </div>`;
       } else {
         const errClass = isEmpty ? ' field-empty' : isUnverified ? ' field-unverified' : isGps ? ' field-gps' : '';
@@ -476,12 +491,7 @@ async function submitAdd() {
 }
 
 function copyAll() {
-  // Зберігаємо відредаговані дати перед копіюванням
-  const ldInput = document.getElementById('edit-loading_date');
-  const edInput = document.getElementById('edit-end_date');
-  if (ldInput) lastData.loading_date = ldInput.value;
-  if (edInput) lastData.end_date = edInput.value;
-
+  syncEditableFields();
   let lines = [];
   for (const section of SECTIONS) {
     lines.push(`\n${section.title}`);
