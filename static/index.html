@@ -38,13 +38,14 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .row-value.field-empty { color: #b91c1c; background: #fef2f2; border-radius: 4px; padding: 2px 8px; }
 .row-value.field-unverified { color: #92400e; background: #fffbeb; border-radius: 4px; padding: 2px 8px; }
 .row-value.field-gps { color: #1a6027; background: #e3fcef; border-radius: 4px; padding: 2px 8px; font-size: 12px; }
+.row-input { font-size: 14px; color: #1a1a1a; font-weight: 500; text-align: right; flex: 1; border: 0.5px solid #ccc; border-radius: 6px; padding: 4px 8px; outline: none; font-family: inherit; background: #fafaf9; }
+.row-input:focus { border-color: #1a1a1a; background: #fff; }
 .btn-add { font-size: 11px; padding: 3px 10px; border: 0.5px solid #d97706; color: #d97706; background: transparent; border-radius: 99px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
 .btn-add:hover { background: #fffbeb; }
 .steps { font-size: 13px; color: #555; line-height: 2; }
 .steps strong { color: #1a1a1a; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
-/* Tabs */
 .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; }
 .tab { padding: 7px 16px; font-size: 13px; font-weight: 500; border-radius: 8px; cursor: pointer; border: 0.5px solid #e0e0de; background: #fff; color: #666; transition: all 0.15s; }
 .tab.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
@@ -52,7 +53,6 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .tab.active .tab-count { background: rgba(255,255,255,0.2); color: #fff; }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
-/* History */
 .trip-item { background: #fff; border: 0.5px solid #e0e0de; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 8px; }
 .trip-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .trip-cmr { font-size: 14px; font-weight: 600; }
@@ -65,9 +65,7 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .btn-status { font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; border: 0.5px solid #ccc; background: transparent; color: #555; }
 .btn-status:hover { background: #f5f5f3; }
 .btn-status.done { border-color: #0e6027; color: #0e6027; }
-.btn-status.done:hover { background: #e3fcef; }
 .empty-state { text-align: center; padding: 3rem 1rem; color: #aaa; font-size: 14px; }
-/* Modal */
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 100; }
 #modal-overlay.open { display: flex; }
 .modal { background: #fff; border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 420px; margin: 1rem; }
@@ -92,7 +90,6 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
     <div class="tab" onclick="switchTab('history')">Рейси <span class="tab-count" id="trips-count">0</span></div>
   </div>
 
-  <!-- Tab: Новий рейс -->
   <div class="tab-content active" id="tab-new">
     <div class="card">
       <div class="card-title">Крок 1 — Завантажити CMR</div>
@@ -132,13 +129,11 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
     </div>
   </div>
 
-  <!-- Tab: Рейси -->
   <div class="tab-content" id="tab-history">
     <div id="trips-list"></div>
   </div>
 </div>
 
-<!-- Modal -->
 <div id="modal-overlay" onclick="handleOverlayClick(event)">
   <div class="modal">
     <div class="modal-title" id="modal-title"></div>
@@ -151,7 +146,6 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 </div>
 
 <script>
-// Порядок полів як у формі RMPD
 const SECTIONS = [
   {
     title: '1. Перевізник',
@@ -172,8 +166,8 @@ const SECTIONS = [
   {
     title: '3. Дати транспорту',
     fields: [
-      { key: 'loading_date', label: 'Дата початку перевезення' },
-      { key: 'end_date', label: 'Дата закінчення перевезення' },
+      { key: 'loading_date', label: 'Дата початку перевезення', editable: true },
+      { key: 'end_date', label: 'Дата закінчення перевезення', editable: true },
     ]
   },
   {
@@ -245,6 +239,12 @@ function switchTab(tab) {
 }
 
 function saveTrip() {
+  // Зберігаємо відредаговані дати
+  const ldInput = document.getElementById('edit-loading_date');
+  const edInput = document.getElementById('edit-end_date');
+  if (ldInput) lastData.loading_date = ldInput.value;
+  if (edInput) lastData.end_date = edInput.value;
+
   const trip = {
     id: Date.now(),
     cmr: lastData.cmr_number || '—',
@@ -379,12 +379,21 @@ function showResult(data) {
       const isEmpty = !val || val.toString().trim() === '';
       const isUnverified = field.verify && !isEmpty && verifiedMap[field.key] === false;
       const isGps = field.gps && !isEmpty;
-      const displayVal = isEmpty ? '—' : val;
-      const errClass = isEmpty ? ' field-empty' : isUnverified ? ' field-unverified' : isGps ? ' field-gps' : '';
-      const addBtn = isUnverified && ADD_TYPE[field.key]
-        ? `<button class="btn-add" onclick="openAddModal('${ADD_TYPE[field.key]}')">+ додати</button>`
-        : '';
-      html += `<div class="row"><span class="row-label">${field.label}</span><span class="row-value${errClass}">${displayVal}</span>${addBtn}</div>`;
+      const displayVal = isEmpty ? '' : val;
+
+      if (field.editable) {
+        // Редаговане поле з input
+        html += `<div class="row">
+          <span class="row-label">${field.label}</span>
+          <input class="row-input" id="edit-${field.key}" value="${displayVal}" placeholder="введіть дату" onchange="lastData['${field.key}']=this.value">
+        </div>`;
+      } else {
+        const errClass = isEmpty ? ' field-empty' : isUnverified ? ' field-unverified' : isGps ? ' field-gps' : '';
+        const addBtn = isUnverified && ADD_TYPE[field.key]
+          ? `<button class="btn-add" onclick="openAddModal('${ADD_TYPE[field.key]}')">+ додати</button>`
+          : '';
+        html += `<div class="row"><span class="row-label">${field.label}</span><span class="row-value${errClass}">${isEmpty ? '—' : displayVal}</span>${addBtn}</div>`;
+      }
     }
   }
 
@@ -467,6 +476,12 @@ async function submitAdd() {
 }
 
 function copyAll() {
+  // Зберігаємо відредаговані дати перед копіюванням
+  const ldInput = document.getElementById('edit-loading_date');
+  const edInput = document.getElementById('edit-end_date');
+  if (ldInput) lastData.loading_date = ldInput.value;
+  if (edInput) lastData.end_date = edInput.value;
+
   let lines = [];
   for (const section of SECTIONS) {
     lines.push(`\n${section.title}`);
