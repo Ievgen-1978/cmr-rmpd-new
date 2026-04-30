@@ -3,6 +3,7 @@ import base64
 import json
 import traceback
 import io
+import fitz  # PyMuPDF
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import anthropic
@@ -64,6 +65,23 @@ def compress_image(file_bytes, max_bytes=4*1024*1024):
     buf = io.BytesIO()
     img.save(buf, format='JPEG', quality=70)
     return buf.getvalue(), 'image/jpeg'
+
+def compress_pdf_page(pix, max_bytes=4*1024*1024):
+    img_bytes = pix.tobytes("jpeg")
+    if len(img_bytes) <= max_bytes:
+        return img_bytes
+    img = Image.open(io.BytesIO(img_bytes))
+    quality = 75
+    while quality >= 40:
+        buf = io.BytesIO()
+        img.save(buf, format='JPEG', quality=quality)
+        if buf.tell() <= max_bytes:
+            return buf.getvalue()
+        quality -= 10
+    img.thumbnail((2000, 2000), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format='JPEG', quality=60)
+    return buf.getvalue()
 
 PROMPT = """Це міжнародна товарно-транспортна накладна (CMR). Витягни дані і поверни ТІЛЬКИ JSON без коментарів і без markdown.
 
@@ -127,31 +145,28 @@ def extract():
 
         if 'pdf' in mt:
             if len(file_bytes) > 4 * 1024 * 1024:
-                import fitz
                 doc = fitz.open(stream=file_bytes, filetype="pdf")
-                page = doc[0]
                 mat = fitz.Matrix(2, 2)
-                pix = page.get_pixmap(matrix=mat)
-                img_bytes = pix.tobytes("jpeg")
-                b64 = base64.standard_b64encode(img_bytes).decode()
-                ci = {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}}
+                content_items = []
+                for page in doc:
+                    pix = page.get_pixmap(matrix=mat)
+                    img_bytes = compress_pdf_page(pix)
+                    b64 = base64.standard_b64encode(img_bytes).decode()
+                    content_items.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}})
+                doc.close()
             else:
-                ci = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": base64.standard_b64encode(file_bytes).decode()}}
+                content_items = [{"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": base64.standard_b64encode(file_bytes).decode()}}]
         else:
             if len(file_bytes) > 4 * 1024 * 1024:
                 file_bytes, mt = compress_image(file_bytes)
             b64 = base64.standard_b64encode(file_bytes).decode()
-            ci = {"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}}
-            if len(file_bytes) > 4 * 1024 * 1024:
-                file_bytes, mt = compress_image(file_bytes)
-            b64 = base64.standard_b64encode(file_bytes).decode()
-            ci = {"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}}
+            content_items = [{"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}}]
 
         client = anthropic.Anthropic(api_key=key)
         msg = client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=1500,
-            messages=[{"role": "user", "content": [ci, {"type": "text", "text": PROMPT}]}]
+            messages=[{"role": "user", "content": content_items + [{"type": "text", "text": PROMPT}]}]
         )
         text = msg.content[0].text.strip().replace('```json','').replace('```','')
         data = json.loads(text)
