@@ -36,12 +36,39 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .row-value { font-size: 14px; color: #1a1a1a; font-weight: 500; text-align: right; flex: 1; }
 .row-value.field-empty { color: #b91c1c; background: #fef2f2; border-radius: 4px; padding: 2px 8px; }
 .row-value.field-unverified { color: #92400e; background: #fffbeb; border-radius: 4px; padding: 2px 8px; }
+.row-value.field-gps { color: #1a6027; background: #e3fcef; border-radius: 4px; padding: 2px 8px; font-size: 12px; }
 .btn-add { font-size: 11px; padding: 3px 10px; border: 0.5px solid #d97706; color: #d97706; background: transparent; border-radius: 99px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
 .btn-add:hover { background: #fffbeb; }
 .steps { font-size: 13px; color: #555; line-height: 2; }
 .steps strong { color: #1a1a1a; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; }
+.tab { padding: 7px 16px; font-size: 13px; font-weight: 500; border-radius: 8px; cursor: pointer; border: 0.5px solid #e0e0de; background: #fff; color: #666; transition: all 0.15s; }
+.tab.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+.tab-count { display: inline-block; background: #e0e0de; color: #555; font-size: 10px; padding: 1px 6px; border-radius: 99px; margin-left: 4px; }
+.tab.active .tab-count { background: rgba(255,255,255,0.2); color: #fff; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* History list */
+.trip-item { background: #fff; border: 0.5px solid #e0e0de; border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; }
+.trip-item:hover { border-color: #999; }
+.trip-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.trip-cmr { font-size: 14px; font-weight: 600; }
+.trip-status { font-size: 11px; padding: 2px 8px; border-radius: 99px; }
+.trip-status.new { background: #e8f0fe; color: #1a56db; }
+.trip-status.processing { background: #fffbeb; color: #92400e; }
+.trip-status.done { background: #e3fcef; color: #0e6027; }
+.trip-meta { font-size: 12px; color: #888; }
+.trip-actions { display: flex; gap: 6px; margin-top: 10px; }
+.btn-status { font-size: 11px; padding: 4px 10px; border-radius: 6px; cursor: pointer; border: 0.5px solid #ccc; background: transparent; color: #555; }
+.btn-status:hover { background: #f5f5f3; }
+.btn-status.done { border-color: #0e6027; color: #0e6027; }
+.btn-status.done:hover { background: #e3fcef; }
+.empty-state { text-align: center; padding: 3rem 1rem; color: #aaa; font-size: 14px; }
 
 /* Modal */
 #modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 100; }
@@ -63,39 +90,56 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
   <h1>CMR → RMPD</h1>
   <p class="sub">Завантаж CMR — отримай готові дані для реєстрації перевезення</p>
 
-  <div class="card">
-    <div class="card-title">Крок 1 — Завантажити CMR</div>
-    <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
-      </svg>
-      <p>Натисни або перетягни файл</p>
-      <p class="hint">Фото (JPG, PNG) або PDF</p>
-    </div>
-    <input type="file" id="fileInput" accept="image/*,application/pdf" style="display:none" onchange="handleFile(this)">
-    <img id="preview" class="preview">
-    <div id="status"></div>
-    <button class="btn btn-primary" id="extractBtn" style="display:none" onclick="extract()">
-      Витягти дані з CMR
-    </button>
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('new')">Новий рейс</div>
+    <div class="tab" onclick="switchTab('history')" id="tab-history">Рейси <span class="tab-count" id="trips-count">0</span></div>
   </div>
 
-  <div class="card" id="resultCard" style="display:none">
-    <div class="result-header">
-      <div class="card-title" style="margin-bottom:0">Крок 2 — Дані для RMPD <span class="badge">готово</span></div>
-      <button class="btn btn-copy" onclick="copyAll()">Копіювати</button>
+  <!-- Tab: Новий рейс -->
+  <div class="tab-content active" id="tab-new">
+    <div class="card">
+      <div class="card-title">Крок 1 — Завантажити CMR</div>
+      <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+        </svg>
+        <p>Натисни або перетягни файл</p>
+        <p class="hint">Фото (JPG, PNG) або PDF</p>
+      </div>
+      <input type="file" id="fileInput" accept="image/*,application/pdf" style="display:none" onchange="handleFile(this)">
+      <img id="preview" class="preview">
+      <div id="status"></div>
+      <button class="btn btn-primary" id="extractBtn" style="display:none" onclick="extract()">
+        Витягти дані з CMR
+      </button>
     </div>
-    <div id="resultRows"></div>
+
+    <div class="card" id="resultCard" style="display:none">
+      <div class="result-header">
+        <div class="card-title" style="margin-bottom:0">Крок 2 — Дані для RMPD <span class="badge">готово</span></div>
+        <button class="btn btn-copy" onclick="copyAll()">Копіювати</button>
+      </div>
+      <div id="resultRows"></div>
+      <button class="btn btn-primary" style="margin-top:1rem; background:#0e6027" onclick="saveTrip()">
+        ✓ Зберегти як «Надійшло»
+      </button>
+    </div>
+
+    <div class="card" id="stepsCard" style="display:none">
+      <div class="card-title">Крок 3 — Внести в портал</div>
+      <div class="steps">
+        1. Відкрий <strong>e-GITD → Nowe zgłoszenie</strong><br>
+        2. Вибери тип: <strong>Transport tranzytowy</strong><br>
+        3. Встав дані зверху<br>
+        4. Натисни <strong>Zarejestruj</strong> — отримаєш номер RMPD
+      </div>
+    </div>
   </div>
 
-  <div class="card" id="stepsCard" style="display:none">
-    <div class="card-title">Крок 3 — Внести в портал</div>
-    <div class="steps">
-      1. Відкрий <strong>e-GITD → Nowe zgłoszenie</strong><br>
-      2. Вибери тип: <strong>Transport tranzytowy</strong><br>
-      3. Встав дані зверху<br>
-      4. Натисни <strong>Zarejestruj</strong> — отримаєш номер RMPD
-    </div>
+  <!-- Tab: Рейси -->
+  <div class="tab-content" id="tab-history">
+    <div id="trips-list"></div>
   </div>
 </div>
 
@@ -126,6 +170,8 @@ const LABELS = {
   delivery_place: 'Місце доставки',
   truck_number: 'Номер авто',
   trailer_number: 'Номер причепа',
+  gps: 'GPS локалізатор',
+  gps_backup: 'GPS резервний',
   goods: 'Товар',
   weight_kg: 'Вага, кг',
   quantity: 'Кількість',
@@ -139,9 +185,111 @@ const ADD_TYPE = {
   truck_number: 'vehicle',
 };
 
+const GPS_FIELDS = ['gps', 'gps_backup'];
+
 let lastData = {};
 let selectedFile = null;
 let modalType = null;
+let trips = JSON.parse(localStorage.getItem('trips') || '[]');
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  if (tab === 'new') {
+    document.querySelector('.tab:first-child').classList.add('active');
+    document.getElementById('tab-new').classList.add('active');
+  } else {
+    document.getElementById('tab-history').classList.add('active');
+    document.getElementById('tab-history-content') && document.getElementById('tab-history-content').classList.add('active');
+    document.querySelectorAll('.tab')[1].classList.add('active');
+    document.getElementById('tab-history').classList.add('active');
+    renderTrips();
+  }
+}
+
+function saveTrip() {
+  const trip = {
+    id: Date.now(),
+    cmr: lastData.cmr_number || '—',
+    truck: lastData.truck_number || '—',
+    sender: lastData.sender_name || '—',
+    receiver: lastData.receiver_name || '—',
+    date: lastData.loading_date || new Date().toLocaleDateString('uk'),
+    status: 'new',
+    rmpd: '',
+    data: lastData,
+    created: new Date().toLocaleString('uk')
+  };
+  trips.unshift(trip);
+  localStorage.setItem('trips', JSON.stringify(trips));
+  updateTripCount();
+  setStatus('success', 'Рейс збережено! Перейди у вкладку «Рейси»');
+}
+
+function updateTripCount() {
+  document.getElementById('trips-count').textContent = trips.length;
+}
+
+function renderTrips() {
+  const el = document.getElementById('trips-list');
+  if (!trips.length) {
+    el.innerHTML = '<div class="empty-state">Рейсів ще немає.<br>Завантаж CMR і натисни «Зберегти».</div>';
+    return;
+  }
+  el.innerHTML = trips.map((t, i) => `
+    <div class="trip-item">
+      <div class="trip-header">
+        <div class="trip-cmr">CMR ${t.cmr} · ${t.truck}</div>
+        <div class="trip-status ${t.status}">${statusLabel(t.status)}</div>
+      </div>
+      <div class="trip-meta">${t.sender} → ${t.receiver} · ${t.date}</div>
+      ${t.rmpd ? `<div class="trip-meta" style="margin-top:4px; color:#0e6027">RMPD: ${t.rmpd}</div>` : ''}
+      <div class="trip-actions">
+        ${t.status === 'new' ? `<button class="btn-status" onclick="setTripStatus(${i},'processing')">→ В роботі</button>` : ''}
+        ${t.status === 'processing' ? `
+          <input placeholder="Номер RMPD" id="rmpd-${i}" style="font-size:12px;padding:4px 8px;border:0.5px solid #ccc;border-radius:6px;outline:none" value="${t.rmpd}">
+          <button class="btn-status done" onclick="setDone(${i})">✓ Оброблено</button>
+        ` : ''}
+        ${t.status === 'done' ? `<button class="btn-status" onclick="setTripStatus(${i},'processing')">↩ Повернути</button>` : ''}
+        <button class="btn-status" onclick="viewTrip(${i})">Переглянути</button>
+        <button class="btn-status" style="color:#b91c1c;border-color:#b91c1c" onclick="deleteTrip(${i})">Видалити</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function statusLabel(s) {
+  return { new: 'Надійшло', processing: 'В роботі', done: 'Оброблено' }[s] || s;
+}
+
+function setTripStatus(i, status) {
+  trips[i].status = status;
+  localStorage.setItem('trips', JSON.stringify(trips));
+  renderTrips();
+}
+
+function setDone(i) {
+  const rmpd = document.getElementById(`rmpd-${i}`).value.trim();
+  trips[i].rmpd = rmpd;
+  trips[i].status = 'done';
+  localStorage.setItem('trips', JSON.stringify(trips));
+  renderTrips();
+}
+
+function deleteTrip(i) {
+  if (!confirm('Видалити цей рейс?')) return;
+  trips.splice(i, 1);
+  localStorage.setItem('trips', JSON.stringify(trips));
+  updateTripCount();
+  renderTrips();
+}
+
+function viewTrip(i) {
+  lastData = trips[i].data;
+  switchTab('new');
+  showResult(lastData);
+  document.getElementById('resultCard').style.display = 'block';
+}
 
 function handleFile(input) {
   selectedFile = input.files[0];
@@ -193,8 +341,9 @@ function showResult(data) {
     const val = data[k];
     const isEmpty = !val || val.toString().trim() === '';
     const isUnverified = (k in verifiedMap) && !isEmpty && verifiedMap[k] === false;
+    const isGps = GPS_FIELDS.includes(k) && !isEmpty;
     const displayVal = isEmpty ? '—' : val;
-    const errClass = isEmpty ? ' field-empty' : isUnverified ? ' field-unverified' : '';
+    const errClass = isEmpty ? ' field-empty' : isUnverified ? ' field-unverified' : isGps ? ' field-gps' : '';
     const addBtn = isUnverified
       ? `<button class="btn-add" onclick="openAddModal('${ADD_TYPE[k]}')">+ додати</button>`
       : '';
@@ -213,7 +362,6 @@ function openAddModal(type) {
   modalType = type;
   const titles = { sender: 'Додати відправника', receiver: 'Додати одержувача', vehicle: 'Додати авто' };
   document.getElementById('modal-title').textContent = titles[type];
-
   let body = '';
   if (type === 'sender' || type === 'receiver') {
     const name = esc(type === 'sender' ? (lastData.sender_name || '') : (lastData.receiver_name || ''));
@@ -265,7 +413,6 @@ async function submitAdd() {
       gps_backup: document.getElementById('add-gps-backup').value.trim(),
     };
   }
-
   try {
     const resp = await fetch(url, {
       method: 'POST',
@@ -296,6 +443,9 @@ function copyAll() {
 function setStatus(type, msg) {
   document.getElementById('status').innerHTML = `<div class="status ${type}">${msg}</div>`;
 }
+
+// Init
+updateTripCount();
 </script>
 </body>
 </html>
