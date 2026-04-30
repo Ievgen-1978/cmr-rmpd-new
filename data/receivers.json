@@ -30,6 +30,11 @@
     "address": {"street": "Feldlesweg 10", "city": "Bad Friedrichshall", "country": "DE", "postal_code": "74177"}
   },
   {
+    "name": "NESTLE UK LTD",
+    "aliases": ["NESTLE UK", "Nestle UK LTD"],
+    "address": {"street": "Unit 2 Wilders Way", "city": "Kegworth", "country": "GB", "postal_code": "DE74 2BB"}
+  }
+  {
     "name": "\"KV-Energi\" ApS.",
     "aliases": ["KV-ENERGI", "KV Energi"],
     "address": {"street": "Faborgvej 177", "city": "Agerbaek", "country": "DK", "postal_code": "6
