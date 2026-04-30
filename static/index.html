@@ -30,16 +30,32 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .status.error { background: #fce8e8; color: #b91c1c; }
 .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: #e3fcef; color: #0e6027; margin-left: 8px; }
-.row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 0.5px solid #f0f0ee; gap: 12px; }
+.row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 0.5px solid #f0f0ee; gap: 8px; }
 .row:last-child { border-bottom: none; }
-.row-label { font-size: 12px; color: #888; min-width: 160px; padding-top: 1px; }
+.row-label { font-size: 12px; color: #888; min-width: 160px; }
 .row-value { font-size: 14px; color: #1a1a1a; font-weight: 500; text-align: right; flex: 1; }
+.row-value.field-empty { color: #b91c1c; background: #fef2f2; border-radius: 4px; padding: 2px 8px; }
+.row-value.field-unverified { color: #92400e; background: #fffbeb; border-radius: 4px; padding: 2px 8px; }
+.btn-add { font-size: 11px; padding: 3px 10px; border: 0.5px solid #d97706; color: #d97706; background: transparent; border-radius: 99px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.btn-add:hover { background: #fffbeb; }
 .steps { font-size: 13px; color: #555; line-height: 2; }
 .steps strong { color: #1a1a1a; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.row-value.field-empty { color: #b91c1c; background: #fef2f2; border-radius: 4px; padding: 2px 8px; }
-.row-value.field-unverified { color: #92400e; background: #fffbeb; border-radius: 4px; padding: 2px 8px; }
+
+/* Modal */
+#modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 100; }
+#modal-overlay.open { display: flex; }
+.modal { background: #fff; border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 420px; margin: 1rem; }
+.modal-title { font-size: 16px; font-weight: 600; margin-bottom: 1.25rem; }
+.modal-label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; margin-top: 14px; }
+.modal-label:first-of-type { margin-top: 0; }
+.modal-input { width: 100%; padding: 8px 10px; font-size: 14px; border: 0.5px solid #ccc; border-radius: 8px; outline: none; font-family: inherit; }
+.modal-input:focus { border-color: #1a1a1a; }
+.modal-actions { display: flex; gap: 8px; margin-top: 1.25rem; justify-content: flex-end; }
+.btn-cancel { padding: 8px 16px; font-size: 13px; border: 0.5px solid #ccc; background: transparent; border-radius: 8px; cursor: pointer; font-family: inherit; }
+.btn-save { padding: 8px 16px; font-size: 13px; background: #1a1a1a; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-family: inherit; }
+.btn-save:hover { opacity: 0.85; }
 </style>
 </head>
 <body>
@@ -83,6 +99,18 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
   </div>
 </div>
 
+<!-- Modal -->
+<div id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-title" id="modal-title"></div>
+    <div id="modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Скасувати</button>
+      <button class="btn-save" onclick="submitAdd()">Зберегти</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const LABELS = {
   cmr_number: '№ CMR',
@@ -105,8 +133,15 @@ const LABELS = {
   cmr_date: 'Дата CMR'
 };
 
+const ADD_TYPE = {
+  sender_name: 'sender',
+  receiver_name: 'receiver',
+  truck_number: 'vehicle',
+};
+
 let lastData = {};
 let selectedFile = null;
+let modalType = null;
 
 function handleFile(input) {
   selectedFile = input.files[0];
@@ -160,11 +195,97 @@ function showResult(data) {
     const isUnverified = (k in verifiedMap) && !isEmpty && verifiedMap[k] === false;
     const displayVal = isEmpty ? '—' : val;
     const errClass = isEmpty ? ' field-empty' : isUnverified ? ' field-unverified' : '';
-    return `<div class="row"><span class="row-label">${label}</span><span class="row-value${errClass}">${displayVal}</span></div>`;
+    const addBtn = isUnverified
+      ? `<button class="btn-add" onclick="openAddModal('${ADD_TYPE[k]}')">+ додати</button>`
+      : '';
+    return `<div class="row"><span class="row-label">${label}</span><span class="row-value${errClass}">${displayVal}</span>${addBtn}</div>`;
   }).join('');
   document.getElementById('resultRows').innerHTML = rows;
   document.getElementById('resultCard').style.display = 'block';
   document.getElementById('stepsCard').style.display = 'block';
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openAddModal(type) {
+  modalType = type;
+  const titles = { sender: 'Додати відправника', receiver: 'Додати одержувача', vehicle: 'Додати авто' };
+  document.getElementById('modal-title').textContent = titles[type];
+
+  let body = '';
+  if (type === 'sender' || type === 'receiver') {
+    const name = esc(type === 'sender' ? (lastData.sender_name || '') : (lastData.receiver_name || ''));
+    const addr = esc(type === 'sender' ? (lastData.sender_address || '') : (lastData.receiver_address || ''));
+    body = `
+      <label class="modal-label">Назва</label>
+      <input class="modal-input" id="add-name" value="${name}">
+      <label class="modal-label">Адреса</label>
+      <input class="modal-input" id="add-address" value="${addr}">`;
+  } else {
+    body = `
+      <label class="modal-label">Номер авто</label>
+      <input class="modal-input" id="add-truck" value="${esc(lastData.truck_number || '')}">
+      <label class="modal-label">Номер причепа</label>
+      <input class="modal-input" id="add-trailer" value="${esc(lastData.trailer_number || '')}">
+      <label class="modal-label">GPS (основний)</label>
+      <input class="modal-input" id="add-gps" placeholder="ID трекера">
+      <label class="modal-label">GPS (резервний)</label>
+      <input class="modal-input" id="add-gps-backup" placeholder="ID резервного трекера">`;
+  }
+  document.getElementById('modal-body').innerHTML = body;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  modalType = null;
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+async function submitAdd() {
+  let url, body;
+  if (modalType === 'sender' || modalType === 'receiver') {
+    url = modalType === 'sender' ? '/add-sender' : '/add-receiver';
+    body = {
+      name: document.getElementById('add-name').value.trim(),
+      aliases: [],
+      address: document.getElementById('add-address').value.trim(),
+    };
+  } else {
+    url = '/add-vehicle';
+    body = {
+      truck: document.getElementById('add-truck').value.trim(),
+      trailer: document.getElementById('add-trailer').value.trim(),
+      gps: document.getElementById('add-gps').value.trim(),
+      gps_backup: document.getElementById('add-gps-backup').value.trim(),
+    };
+  }
+
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const result = await resp.json();
+    if (result.ok) {
+      if (modalType === 'sender') lastData.sender_verified = true;
+      else if (modalType === 'receiver') lastData.receiver_verified = true;
+      else lastData.vehicle_verified = true;
+      closeModal();
+      showResult(lastData);
+      setStatus('success', result.message || 'Додано успішно');
+    } else {
+      alert('Помилка: ' + (result.error || 'невідома'));
+    }
+  } catch (e) {
+    alert('Помилка: ' + e.message);
+  }
 }
 
 function copyAll() {
