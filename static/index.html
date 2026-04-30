@@ -38,7 +38,8 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .steps strong { color: #1a1a1a; }
 .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.row-value.field-error { color: #b91c1c; background: #fef2f2; border-radius: 4px; padding: 2px 8px; }
+.row-value.field-empty { color: #b91c1c; background: #fef2f2; border-radius: 4px; padding: 2px 8px; }
+.row-value.field-unverified { color: #92400e; background: #fffbeb; border-radius: 4px; padding: 2px 8px; }
 </style>
 </head>
 <body>
@@ -157,9 +158,8 @@ function showResult(data) {
     const val = data[k];
     const isEmpty = !val || val.toString().trim() === '';
     const isUnverified = (k in verifiedMap) && !isEmpty && verifiedMap[k] === false;
-    const isError = isEmpty || isUnverified;
     const displayVal = isEmpty ? '—' : val;
-    const errClass = isError ? ' field-error' : '';
+    const errClass = isEmpty ? ' field-empty' : isUnverified ? ' field-unverified' : '';
     return `<div class="row"><span class="row-label">${label}</span><span class="row-value${errClass}">${displayVal}</span></div>`;
   }).join('');
   document.getElementById('resultRows').innerHTML = rows;
