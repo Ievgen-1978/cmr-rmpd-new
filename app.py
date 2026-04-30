@@ -41,6 +41,15 @@ def find_in_catalog(name, catalog):
                 return item
     return None
 
+def get_address_from_catalog(item):
+    if not item:
+        return ''
+    addr = item.get('address', {})
+    if isinstance(addr, dict):
+        parts = [addr.get('street',''), addr.get('city',''), addr.get('country',''), addr.get('postal_code','')]
+        return ', '.join(p for p in parts if p)
+    return str(addr)
+
 def get_vehicle_gps(truck, vehicles):
     if not truck:
         return '', ''
@@ -96,23 +105,24 @@ PROMPT = """Це міжнародна товарно-транспортна на
 Поле 1 (лівий верх) = ВІДПРАВНИК: назва компанії + адреса + країна
 Поле 2 (під полем 1) = ОДЕРЖУВАЧ: тільки НАЗВА компанії. Адресу одержувача НЕ брати з цього поля!
 Поле 3 (під полем 2) = АДРЕСА ДОСТАВКИ: точна адреса складу куди везуть вантаж (вулиця, місто, індекс, країна)
-Поле 4 = МІСЦЕ ЗАВАНТАЖЕННЯ: місто і країна звідки забрали вантаж (НЕ адреса одержувача!)
+Поле 4 = МІСЦЕ ЗАВАНТАЖЕННЯ: місто і країна звідки забрали вантаж. Формат: "Місто, Країна". НЕ адреса одержувача!
 Поле 7 = КІЛЬКІСТЬ МІСЦЬ (число палет, коробок тощо)
 Поле 9 = НАЙМЕНУВАННЯ ВАНТАЖУ
 Поле 11 = ВАГА БРУТТО в кг
 Поле 16 (правий верх, печатка) = ПЕРЕВІЗНИК — завжди TZOV SMART TRANS HRUP
 Поле 17 або 22 (внизу де підпис перевізника) = НОМЕРИ АВТО І ПРИЧЕПА — читай ПОВНІСТЮ всі літери і цифри
-Поле 21 = ДАТА складання CMR
+Поле 21 = ДАТА складання CMR і місце
 
 КРИТИЧНІ ПРАВИЛА:
-1. receiver_address — брати ТІЛЬКИ з поля 3, це адреса складу призначення. НЕ з поля 2.
+1. receiver_address — брати ТІЛЬКИ з поля 3 (адреса складу призначення). НЕ з поля 2.
 2. receiver_name — брати тільки назву з поля 2.
-3. loading_place — місто звідки забрали вантаж (поле 4), НЕ адреса одержувача.
-4. Номери авто — читай ПОВНІСТЮ: всі літери і цифри. Наприклад AC1566EO, не AC1566. Великими літерами без пробілів.
-5. Якщо авто і причеп через "/" — формат АВТО/ПРИЧЕП.
-6. Умови оплати (DAP, FOB, EXW, FCA) — НЕ є місцем. Ігноруй.
-7. Кількість — число з одиницею (наприклад: "51 палета").
-8. Дата CMR — з поля 21.
+3. loading_place — місто звідки забрали вантаж (поле 4). НЕ адреса одержувача.
+4. loading_date — дата з поля 4 (дата завантаження). НЕ дата CMR з поля 21.
+5. cmr_date — дата з поля 21 (дата складання накладної).
+6. Номери авто — читай ПОВНІСТЮ всі літери і цифри. Наприклад AC1566EO, не AC1566. Великими літерами без пробілів.
+7. Якщо авто і причеп через "/" — формат АВТО/ПРИЧЕП.
+8. Умови оплати (DAP, FOB, EXW, FCA) — НЕ є місцем. Ігноруй.
+9. Кількість — число з одиницею (наприклад: "51 палета").
 
 JSON що треба повернути:
 {
@@ -214,6 +224,10 @@ def extract():
         data['sender_verified'] = bool(sender_match)
         if sender_match:
             data['sender_canonical'] = sender_match['name']
+            data['sender_name'] = sender_match['name']
+            catalog_addr = get_address_from_catalog(sender_match)
+            if catalog_addr:
+                data['sender_address'] = catalog_addr
         elif data.get('sender_name'):
             warnings.append(f"Відправник '{data['sender_name']}' — новий, немає в каталозі")
 
@@ -221,6 +235,10 @@ def extract():
         data['receiver_verified'] = bool(receiver_match)
         if receiver_match:
             data['receiver_canonical'] = receiver_match['name']
+            data['receiver_name'] = receiver_match['name']
+            catalog_addr = get_address_from_catalog(receiver_match)
+            if catalog_addr:
+                data['receiver_address'] = catalog_addr
         elif data.get('receiver_name'):
             warnings.append(f"Одержувач '{data['receiver_name']}' — новий, немає в каталозі")
 
@@ -258,13 +276,4 @@ def add_vehicle():
         vehicles = load_catalog('vehicles.json')
         vehicles.append({
             "truck": body.get('truck','').upper().replace(' ',''),
-            "trailer": body.get('trailer','').upper().replace(' ',''),
-            "gps": body.get('gps',''),
-            "gps_backup": body.get('gps_backup','')
-        })
-        return jsonify({"ok": save_catalog('vehicles.json', vehicles), "message": "Авто додано"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+            "trailer": body.get('trailer
