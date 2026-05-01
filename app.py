@@ -13,77 +13,76 @@ app = Flask(__name__, static_folder='static')
 CORS(app)
 
 def load_catalog(filename):
-    path = os.path.join(os.path.dirname(__file__), 'data', filename)
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        return []
+        path = os.path.join(os.path.dirname(__file__), 'data', filename)
+        try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                                    return json.load(f)
+                            except:
+                    return []
 
 def save_catalog(filename, data):
-    path = os.path.join(os.path.dirname(__file__), 'data', filename)
+        path = os.path.join(os.path.dirname(__file__), 'data', filename)
     try:
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        return True
+                with open(path, 'w', encoding='utf-8') as f:
+                                json.dump(data, f, ensure_ascii=False, indent=2)
+                            return True
     except:
         return False
 
 def find_in_catalog(name, catalog):
-    if not name:
-        return None
-    name_upper = name.upper().strip()
+        if not name:
+                    return None
+                name_upper = name.upper().strip()
     for item in catalog:
-        cat_name = item['name'].upper()
+                cat_name = item['name'].upper()
         if cat_name in name_upper or name_upper in cat_name:
-            return item
-        for alias in item.get('aliases', []):
-            if alias.upper() in name_upper or name_upper in alias.upper():
-                return item
-    # Пошук по ключових словах (мінімум 2 слова збігаються)
-    name_words = set(w for w in name_upper.split() if len(w) > 3)
+                        return item
+                    for alias in item.get('aliases', []):
+                                    if alias.upper() in name_upper or name_upper in alias.upper():
+                                                        return item
+                                            name_words = set(w for w in name_upper.split() if len(w) > 3)
     for item in catalog:
-        cat_words = set(w for w in item['name'].upper().split() if len(w) > 3)
+                cat_words = set(w for w in item['name'].upper().split() if len(w) > 3)
         if len(name_words & cat_words) >= 2:
-            return item
+                        return item
         for alias in item.get('aliases', []):
-            alias_words = set(w for w in alias.upper().split() if len(w) > 3)
+                        alias_words = set(w for w in alias.upper().split() if len(w) > 3)
             if len(name_words & alias_words) >= 2:
-                return item
+                                return item
     return None
 
 def get_address_from_catalog(item):
-    if not item:
-        return ''
+        if not item:
+                    return ''
     addr = item.get('address', {})
     if isinstance(addr, dict):
-        parts = [addr.get('street',''), addr.get('city',''), addr.get('country',''), addr.get('postal_code','')]
+                parts = [addr.get('street',''), addr.get('city',''), addr.get('country',''), addr.get('postal_code','')]
         return ', '.join(p for p in parts if p)
     return str(addr)
 
 def get_vehicle_gps(truck, vehicles):
-    if not truck:
-        return '', ''
+        if not truck:
+                    return '', ''
     truck_upper = truck.upper().replace(' ', '')
     for v in vehicles:
-        if v['truck'].upper().replace(' ', '') == truck_upper:
-            return v.get('gps', ''), v.get('gps_backup', '')
+                if v['truck'].upper().replace(' ', '') == truck_upper:
+                                return v.get('gps', ''), v.get('gps_backup', '')
     for v in vehicles:
-        catalog_truck = v['truck'].upper().replace(' ', '')
+                catalog_truck = v['truck'].upper().replace(' ', '')
         if catalog_truck.startswith(truck_upper) or truck_upper.startswith(catalog_truck[:6]):
-            return v.get('gps', ''), v.get('gps_backup', '')
+                        return v.get('gps', ''), v.get('gps_backup', '')
     return '', ''
 
 def compress_image(file_bytes, max_bytes=4*1024*1024):
-    img = Image.open(io.BytesIO(file_bytes))
+        img = Image.open(io.BytesIO(file_bytes))
     if img.mode in ('RGBA', 'P'):
-        img = img.convert('RGB')
+                img = img.convert('RGB')
     quality = 85
     while quality >= 40:
-        buf = io.BytesIO()
+                buf = io.BytesIO()
         img.save(buf, format='JPEG', quality=quality)
         if buf.tell() <= max_bytes:
-            return buf.getvalue(), 'image/jpeg'
+                        return buf.getvalue(), 'image/jpeg'
         quality -= 10
     img.thumbnail((2000, 2000), Image.LANCZOS)
     buf = io.BytesIO()
@@ -91,210 +90,100 @@ def compress_image(file_bytes, max_bytes=4*1024*1024):
     return buf.getvalue(), 'image/jpeg'
 
 def compress_pdf_page(pix, max_bytes=4*1024*1024):
-    img_bytes = pix.tobytes("jpeg")
+        img_bytes = pix.tobytes("jpeg")
     if len(img_bytes) <= max_bytes:
-        return img_bytes
+                return img_bytes
     img = Image.open(io.BytesIO(img_bytes))
     quality = 75
     while quality >= 40:
-        buf = io.BytesIO()
+                buf = io.BytesIO()
         img.save(buf, format='JPEG', quality=quality)
         if buf.tell() <= max_bytes:
-            return buf.getvalue()
+                        return buf.getvalue()
         quality -= 10
     img.thumbnail((2000, 2000), Image.LANCZOS)
     buf = io.BytesIO()
     img.save(buf, format='JPEG', quality=60)
     return buf.getvalue()
 
-PROMPT = """Це міжнародна товарно-транспортна накладна CMR. Витягни дані і поверни ТІЛЬКИ JSON без коментарів і без markdown.
+PROMPT = """This is an international consignment note CMR. Extract data and return ONLY JSON without comments or markdown.
 
-СТРУКТУРА ПОЛІВ CMR:
+CMR FIELD STRUCTURE:
 
-Поле 1 (лівий верх) = ВІДПРАВНИК: назва + адреса + країна
-Поле 2 (під полем 1) = ОДЕРЖУВАЧ: назва + юридична адреса + країна
-Поле 3 (під полем 2) = МІСЦЕ ДОСТАВКИ: фактична адреса складу куди везуть вантаж (інша ніж юридична адреса одержувача)
-Поле 4 = МІСЦЕ І ДАТА ЗАВАНТАЖЕННЯ: місто, країна, дата завантаження
-Поле 16 (правий верх, печатка) = ПЕРЕВІЗНИК — завжди TZOV SMART TRANS HRUP. НЕ плутати з відправником чи одержувачем!
-Поле 17 або 22 (внизу де підпис перевізника і печатка) = НОМЕРИ АВТО І ПРИЧЕПА
-Поле 21 = ДАТА CMR і місце складання
+Field 1 (top left) = SENDER: company name + address + country
+Field 2 (below field 1, LEFT side) = CONSIGNEE/RECEIVER: company name + legal address + country
+Field 3 (below field 2) = DELIVERY PLACE: actual warehouse address where goods are delivered
+Field 4 = LOADING PLACE AND DATE: city, country, loading date
+Field 16 (RIGHT side with stamp) = CARRIER = always TZOV SMART TRANS HRUP. NOT the receiver!
+Field 17 or 22/26 (bottom where carrier signs) = TRUCK AND TRAILER NUMBERS
+Field 21 = CMR DATE
 
-КРИТИЧНІ ПРАВИЛА:
-1. sender_name, sender_address — ТІЛЬКИ з поля 1
-2. receiver_name — ТІЛЬКИ назва з поля 2
-3. receiver_address — юридична адреса з поля 2 (разом з назвою одержувача в полі 2)
-4. delivery_place — адреса з поля 3 (фактичне місце доставки). Поле 3 знаходиться ПІД полем 2 одержувача.
-5. loading_place — місто з поля 4. НЕ адреса перевізника з поля 16!
-6. loading_date — дата з поля 4
-7. cmr_date — дата з поля 21
-8. Поле 16 = ТІЛЬКИ перевізник (TZOV SMART TRANS HRUP). Адреса з поля 16 НЕ є місцем завантаження і НЕ є адресою одержувача!
-9. Номери авто — ПОВНІСТЮ великими без пробілів (AC1566EO не AC1566). Читай з поля 17 або з підпису внизу (поле 22).
-10. transport_type:
-    - Якщо Польща є країною завантаження АБО країною доставки → "Transport dwustronny"
-    - Якщо Польща НЕ є ні відправником ні отримувачем (наприклад UA→DE, UA→UK) → "Transport tranzytowy"
-11. border_crossing — порожній рядок (визначається окремо)
-12. end_date — порожній рядок якщо немає в документі
+CRITICAL RULES:
+1. sender_name, sender_address - ONLY from field 1 (top left)
+2. receiver_name - ONLY the company name from field 2 (LEFT side, below sender)
+3. receiver_address - legal address from field 2 (LEFT side)
+4. WARNING: Field 16 (RIGHT side with stamp) = CARRIER = TZOV SMART TRANS HRUP. NEVER use field 16 as receiver!
+5. delivery_place - address from field 3 (actual delivery warehouse)
+6. loading_place - city from field 4. NOT the carrier address from field 16!
+7. loading_date - date from field 4
+8. cmr_date - date from field 21
+9. delivery_country - country of receiver from field 2 or delivery place from field 3. NOT carrier country!
+10. Truck numbers - FULL uppercase without spaces (AC1566EO not AC1566)
+11. transport_type:
+    - Poland is loading OR delivery country -> "Transport dwustronny"
+    - Poland is NOT involved (UA->CH, UA->DE, UA->UK etc) -> "Transport tranzytowy"
+12. border_crossing - empty string
+13. end_date - empty string if not in document
 
 JSON:
 {
   "cmr_number": "",
-  "truck_number": "",
-  "trailer_number": "",
-  "loading_date": "",
-  "end_date": "",
-  "loading_country": "",
-  "delivery_country": "",
-  "transport_type": "",
-  "cmr_date": "",
-  "loading_place": "",
-  "delivery_place": "",
-  "border_crossing": "",
-  "sender_name": "",
-  "sender_address": "",
-  "receiver_name": "",
-  "receiver_address": ""
+    "truck_number": "",
+      "trailer_number": "",
+        "loading_date": "",
+          "end_date": "",
+            "loading_country": "",
+              "delivery_country": "",
+                "transport_type": "",
+                  "cmr_date": "",
+                    "loading_place": "",
+                      "delivery_place": "",
+                        "border_crossing": "",
+                          "sender_name": "",
+                            "sender_address": "",
+                              "receiver_name": "",
+                                "receiver_address": ""
 }
 
-Якщо поле не знайдено — порожній рядок."""
+If field not found - empty string."""
 
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
+        return send_from_directory('static', 'index.html')
 
 @app.route('/health')
 def health():
-    key = os.environ.get("ANTHROPIC_API_KEY", "")
+        key = os.environ.get("ANTHROPIC_API_KEY", "")
     return jsonify({"ok": True, "key": len(key)})
 
 @app.route('/border-crossings')
 def border_crossings():
-    data = load_catalog('border_crossings.json')
+        data = load_catalog('border_crossings.json')
     return jsonify(data)
 
 @app.route('/extract', methods=['POST'])
 def extract():
-    try:
-        key = os.environ.get("ANTHROPIC_API_KEY", "")
-        if not key:
-            return jsonify({"error": "API ключ не налаштовано"}), 500
-        if 'file' not in request.files:
-            return jsonify({"error": "Файл не знайдено"}), 400
+        try:
+                    key = os.environ.get("ANTHROPIC_API_KEY", "")
+                    if not key:
+                                    return jsonify({"error": "API key not configured"}), 500
+                                if 'file' not in request.files:
+                                                return jsonify({"error": "File not found"}), 400
 
-        f = request.files['file']
-        file_bytes = f.read()
-        mt = f.content_type or 'image/jpeg'
+                    f = request.files['file']
+                    file_bytes = f.read()
+                    mt = f.content_type or 'image/jpeg'
 
-        if 'pdf' in mt:
-            if len(file_bytes) > 4 * 1024 * 1024:
-                doc = fitz.open(stream=file_bytes, filetype="pdf")
-                mat = fitz.Matrix(2, 2)
-                content_items = []
-                for page in doc:
-                    pix = page.get_pixmap(matrix=mat)
-                    img_bytes = compress_pdf_page(pix)
-                    b64 = base64.standard_b64encode(img_bytes).decode()
-                    content_items.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}})
-                doc.close()
-            else:
-                content_items = [{"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": base64.standard_b64encode(file_bytes).decode()}}]
-        else:
-            if len(file_bytes) > 4 * 1024 * 1024:
-                file_bytes, mt = compress_image(file_bytes)
-            b64 = base64.standard_b64encode(file_bytes).decode()
-            content_items = [{"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}}]
-
-        client = anthropic.Anthropic(api_key=key)
-        msg = client.messages.create(
-            model="claude-sonnet-4-5-20251001",
-            max_tokens=1500,
-            messages=[{"role": "user", "content": content_items + [{"type": "text", "text": PROMPT}]}]
-        )
-        text = msg.content[0].text.strip().replace('```json','').replace('```','')
-        data = json.loads(text)
-
-        senders = load_catalog('senders.json')
-        receivers = load_catalog('receivers.json')
-        vehicles = load_catalog('vehicles.json')
-        carrier = load_catalog('carrier.json')
-        warnings = []
-
-        if isinstance(carrier, dict):
-            addr = carrier.get('address', {})
-            data['carrier_name'] = carrier.get('name', '')
-            data['carrier_address'] = f"{addr.get('street','')} {addr.get('house','')}, {addr.get('city','')}, {addr.get('country','')}, {addr.get('postal_code','')}"
-            data['carrier_id'] = carrier.get('identity_number', '')
-
-        truck = data.get('truck_number', '').replace(' ', '')
-        gps, gps_backup = get_vehicle_gps(truck, vehicles)
-        data['gps'] = gps
-        data['gps_backup'] = gps_backup
-        data['vehicle_verified'] = bool(gps)
-        if truck and not gps:
-            warnings.append(f"Авто {truck} не знайдено в каталозі — GPS невідомий")
-
-        sender_match = find_in_catalog(data.get('sender_name', ''), senders)
-        data['sender_verified'] = bool(sender_match)
-        if sender_match:
-            data['sender_canonical'] = sender_match['name']
-            data['sender_name'] = sender_match['name']
-            catalog_addr = get_address_from_catalog(sender_match)
-            if catalog_addr:
-                data['sender_address'] = catalog_addr
-        elif data.get('sender_name'):
-            warnings.append(f"Відправник '{data['sender_name']}' — новий, немає в каталозі")
-
-        receiver_match = find_in_catalog(data.get('receiver_name', ''), receivers)
-        data['receiver_verified'] = bool(receiver_match)
-        if receiver_match:
-            data['receiver_canonical'] = receiver_match['name']
-            data['receiver_name'] = receiver_match['name']
-            catalog_addr = get_address_from_catalog(receiver_match)
-            if catalog_addr:
-                data['receiver_address'] = catalog_addr
-        elif data.get('receiver_name'):
-            warnings.append(f"Одержувач '{data['receiver_name']}' — новий, немає в каталозі")
-
-        data['warnings'] = warnings
-        return jsonify(data)
-
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/add-sender', methods=['POST'])
-def add_sender():
-    try:
-        body = request.get_json()
-        senders = load_catalog('senders.json')
-        senders.append({"name": body.get('name',''), "aliases": body.get('aliases',[]), "address": body.get('address',{})})
-        return jsonify({"ok": save_catalog('senders.json', senders), "message": "Відправника додано"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/add-receiver', methods=['POST'])
-def add_receiver():
-    try:
-        body = request.get_json()
-        receivers = load_catalog('receivers.json')
-        receivers.append({"name": body.get('name',''), "aliases": body.get('aliases',[]), "address": body.get('address',{})})
-        return jsonify({"ok": save_catalog('receivers.json', receivers), "message": "Одержувача додано"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/add-vehicle', methods=['POST'])
-def add_vehicle():
-    try:
-        body = request.get_json()
-        vehicles = load_catalog('vehicles.json')
-        vehicles.append({
-            "truck": body.get('truck','').upper().replace(' ',''),
-            "trailer": body.get('trailer','').upper().replace(' ',''),
-            "gps": body.get('gps',''),
-            "gps_backup": body.get('gps_backup','')
-        })
-        return jsonify({"ok": save_catalog('vehicles.json', vehicles), "message": "Авто додано"})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+            if 'pdf' in mt:
+                            if len(file_bytes) > 4 * 1024 * 1024:
+                                                doc = fitz.open(stream=f
