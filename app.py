@@ -21,68 +21,68 @@ def load_catalog(filename):
         return []
 
 def save_catalog(filename, data):
-        path = os.path.join(os.path.dirname(__file__), 'data', filename)
+    path = os.path.join(os.path.dirname(__file__), 'data', filename)
     try:
-                with open(path, 'w', encoding='utf-8') as f:
-                                json.dump(data, f, ensure_ascii=False, indent=2)
-                            return True
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
     except:
         return False
 
 def find_in_catalog(name, catalog):
-        if not name:
-                    return None
-                name_upper = name.upper().strip()
+    if not name:
+        return None
+    name_upper = name.upper().strip()
     for item in catalog:
-                cat_name = item['name'].upper()
+        cat_name = item['name'].upper()
         if cat_name in name_upper or name_upper in cat_name:
-                        return item
-                    for alias in item.get('aliases', []):
-                                    if alias.upper() in name_upper or name_upper in alias.upper():
-                                                        return item
-                                            name_words = set(w for w in name_upper.split() if len(w) > 3)
-    for item in catalog:
-                cat_words = set(w for w in item['name'].upper().split() if len(w) > 3)
-        if len(name_words & cat_words) >= 2:
-                        return item
+            return item
         for alias in item.get('aliases', []):
-                        alias_words = set(w for w in alias.upper().split() if len(w) > 3)
+            if alias.upper() in name_upper or name_upper in alias.upper():
+                return item
+    name_words = set(w for w in name_upper.split() if len(w) > 3)
+    for item in catalog:
+        cat_words = set(w for w in item['name'].upper().split() if len(w) > 3)
+        if len(name_words & cat_words) >= 2:
+            return item
+        for alias in item.get('aliases', []):
+            alias_words = set(w for w in alias.upper().split() if len(w) > 3)
             if len(name_words & alias_words) >= 2:
-                                return item
+                return item
     return None
 
 def get_address_from_catalog(item):
-        if not item:
-                    return ''
+    if not item:
+        return ''
     addr = item.get('address', {})
     if isinstance(addr, dict):
-                parts = [addr.get('street',''), addr.get('city',''), addr.get('country',''), addr.get('postal_code','')]
+        parts = [addr.get('street',''), addr.get('city',''), addr.get('country',''), addr.get('postal_code','')]
         return ', '.join(p for p in parts if p)
     return str(addr)
 
 def get_vehicle_gps(truck, vehicles):
-        if not truck:
-                    return '', ''
+    if not truck:
+        return '', ''
     truck_upper = truck.upper().replace(' ', '')
     for v in vehicles:
-                if v['truck'].upper().replace(' ', '') == truck_upper:
-                                return v.get('gps', ''), v.get('gps_backup', '')
+        if v['truck'].upper().replace(' ', '') == truck_upper:
+            return v.get('gps', ''), v.get('gps_backup', '')
     for v in vehicles:
-                catalog_truck = v['truck'].upper().replace(' ', '')
+        catalog_truck = v['truck'].upper().replace(' ', '')
         if catalog_truck.startswith(truck_upper) or truck_upper.startswith(catalog_truck[:6]):
-                        return v.get('gps', ''), v.get('gps_backup', '')
+            return v.get('gps', ''), v.get('gps_backup', '')
     return '', ''
 
 def compress_image(file_bytes, max_bytes=4*1024*1024):
-        img = Image.open(io.BytesIO(file_bytes))
+    img = Image.open(io.BytesIO(file_bytes))
     if img.mode in ('RGBA', 'P'):
-                img = img.convert('RGB')
+        img = img.convert('RGB')
     quality = 85
     while quality >= 40:
-                buf = io.BytesIO()
+        buf = io.BytesIO()
         img.save(buf, format='JPEG', quality=quality)
         if buf.tell() <= max_bytes:
-                        return buf.getvalue(), 'image/jpeg'
+            return buf.getvalue(), 'image/jpeg'
         quality -= 10
     img.thumbnail((2000, 2000), Image.LANCZOS)
     buf = io.BytesIO()
@@ -90,16 +90,16 @@ def compress_image(file_bytes, max_bytes=4*1024*1024):
     return buf.getvalue(), 'image/jpeg'
 
 def compress_pdf_page(pix, max_bytes=4*1024*1024):
-        img_bytes = pix.tobytes("jpeg")
+    img_bytes = pix.tobytes("jpeg")
     if len(img_bytes) <= max_bytes:
-                return img_bytes
+        return img_bytes
     img = Image.open(io.BytesIO(img_bytes))
     quality = 75
     while quality >= 40:
-                buf = io.BytesIO()
+        buf = io.BytesIO()
         img.save(buf, format='JPEG', quality=quality)
         if buf.tell() <= max_bytes:
-                        return buf.getvalue()
+            return buf.getvalue()
         quality -= 10
     img.thumbnail((2000, 2000), Image.LANCZOS)
     buf = io.BytesIO()
@@ -109,7 +109,6 @@ def compress_pdf_page(pix, max_bytes=4*1024*1024):
 PROMPT = """This is an international consignment note CMR. Extract data and return ONLY JSON without comments or markdown.
 
 CMR FIELD STRUCTURE:
-
 Field 1 (top left) = SENDER: company name + address + country
 Field 2 (below field 1, LEFT side) = CONSIGNEE/RECEIVER: company name + legal address + country
 Field 3 (below field 2) = DELIVERY PLACE: actual warehouse address where goods are delivered
@@ -138,52 +137,125 @@ CRITICAL RULES:
 JSON:
 {
   "cmr_number": "",
-    "truck_number": "",
-      "trailer_number": "",
-        "loading_date": "",
-          "end_date": "",
-            "loading_country": "",
-              "delivery_country": "",
-                "transport_type": "",
-                  "cmr_date": "",
-                    "loading_place": "",
-                      "delivery_place": "",
-                        "border_crossing": "",
-                          "sender_name": "",
-                            "sender_address": "",
-                              "receiver_name": "",
-                                "receiver_address": ""
+  "truck_number": "",
+  "trailer_number": "",
+  "loading_date": "",
+  "end_date": "",
+  "loading_country": "",
+  "delivery_country": "",
+  "transport_type": "",
+  "cmr_date": "",
+  "loading_place": "",
+  "delivery_place": "",
+  "border_crossing": "",
+  "sender_name": "",
+  "sender_address": "",
+  "receiver_name": "",
+  "receiver_address": ""
 }
-
 If field not found - empty string."""
 
 @app.route('/')
 def index():
-        return send_from_directory('static', 'index.html')
+    return send_from_directory('static', 'index.html')
 
 @app.route('/health')
 def health():
-        key = os.environ.get("ANTHROPIC_API_KEY", "")
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
     return jsonify({"ok": True, "key": len(key)})
 
 @app.route('/border-crossings')
 def border_crossings():
-        data = load_catalog('border_crossings.json')
+    data = load_catalog('border_crossings.json')
     return jsonify(data)
 
 @app.route('/extract', methods=['POST'])
 def extract():
-        try:
-                    key = os.environ.get("ANTHROPIC_API_KEY", "")
-                    if not key:
-                                    return jsonify({"error": "API key not configured"}), 500
-                                if 'file' not in request.files:
-                                                return jsonify({"error": "File not found"}), 400
+    try:
+        key = os.environ.get("ANTHROPIC_API_KEY", "")
+        if not key:
+            return jsonify({"error": "API key not configured"}), 500
+        if 'file' not in request.files:
+            return jsonify({"error": "File not found"}), 400
+        f = request.files['file']
+        file_bytes = f.read()
+        mt = f.content_type or 'image/jpeg'
 
-                    f = request.files['file']
-                    file_bytes = f.read()
-                    mt = f.content_type or 'image/jpeg'
+        if 'pdf' in mt:
+            doc = fitz.open(stream=file_bytes, filetype="pdf")
+            page = doc[0]
+            pix = page.get_pixmap(dpi=150)
+            file_bytes = compress_pdf_page(pix)
+            mt = 'image/jpeg'
+        else:
+            if len(file_bytes) > 4 * 1024 * 1024:
+                file_bytes, mt = compress_image(file_bytes)
 
-            if 'pdf' in mt:
-                            if len(file_bytes) > 4 * 1024 * 1024:
-                                                doc = fitz.open(stream=f
+        b64 = base64.standard_b64encode(file_bytes).decode('utf-8')
+
+        client = anthropic.Anthropic(api_key=key)
+        msg = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=1000,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": mt, "data": b64}},
+                    {"type": "text", "text": PROMPT}
+                ]
+            }]
+        )
+
+        raw = msg.content[0].text.strip()
+        if raw.startswith('```'):
+            raw = raw.split('```')[1]
+            if raw.startswith('json'):
+                raw = raw[4:]
+        parsed = json.loads(raw)
+
+        senders = load_catalog('senders.json')
+        receivers = load_catalog('receivers.json')
+        vehicles = load_catalog('vehicles.json')
+        carrier = load_catalog('carrier.json')
+
+        sender_match = find_in_catalog(parsed.get('sender_name', ''), senders)
+        receiver_match = find_in_catalog(parsed.get('receiver_name', ''), receivers)
+
+        truck = parsed.get('truck_number', '')
+        gps, gps_backup = get_vehicle_gps(truck, vehicles)
+
+        return jsonify({
+            "parsed": parsed,
+            "sender_match": sender_match,
+            "receiver_match": receiver_match,
+            "carrier": carrier[0] if carrier else {},
+            "gps": gps,
+            "gps_backup": gps_backup,
+            "sender_known": sender_match is not None,
+            "receiver_known": receiver_match is not None
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+@app.route('/catalog/<name>', methods=['GET'])
+def get_catalog(name):
+    allowed = ['senders', 'receivers', 'vehicles', 'routes']
+    if name not in allowed:
+        return jsonify({"error": "Not allowed"}), 403
+    data = load_catalog(f'{name}.json')
+    return jsonify(data)
+
+@app.route('/catalog/<name>', methods=['POST'])
+def add_to_catalog(name):
+    allowed = ['senders', 'receivers', 'vehicles']
+    if name not in allowed:
+        return jsonify({"error": "Not allowed"}), 403
+    data = load_catalog(f'{name}.json')
+    new_item = request.json
+    data.append(new_item)
+    ok = save_catalog(f'{name}.json', data)
+    return jsonify({"ok": ok})
+
+if __name__ == '__main__':
+    app.run(debug=True)
