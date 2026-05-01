@@ -13,12 +13,12 @@ app = Flask(__name__, static_folder='static')
 CORS(app)
 
 def load_catalog(filename):
-        path = os.path.join(os.path.dirname(__file__), 'data', filename)
-        try:
-                    with open(path, 'r', encoding='utf-8') as f:
-                                    return json.load(f)
-                            except:
-                    return []
+    path = os.path.join(os.path.dirname(__file__), 'data', filename)
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return []
 
 def save_catalog(filename, data):
         path = os.path.join(os.path.dirname(__file__), 'data', filename)
