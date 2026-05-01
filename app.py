@@ -205,7 +205,7 @@ def extract():
 
         client = anthropic.Anthropic(api_key=key)
         msg = client.messages.create(
-            model="claude-haiku-4-5-20251001",
+            model="claude-sonnet-4-5-20251001",
             max_tokens=1500,
             messages=[{"role": "user", "content": content_items + [{"type": "text", "text": PROMPT}]}]
         )
