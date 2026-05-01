@@ -31,21 +31,19 @@ h1 { font-size: 22px; font-weight: 500; margin-bottom: 0.25rem; }
 .status.error { background: #fce8e8; color: #b91c1c; }
 .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
 .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; background: #e3fcef; color: #0e6027; margin-left: 8px; }
-.row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 0.5px solid #f0f0ee; gap: 8px; }
+.row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 0.5px solid #f0f0ee; gap: 8px; flex-wrap: wrap; }
 .row:last-child { border-bottom: none; }
 .row-label { font-size: 12px; color: #888; min-width: 180px; }
 .row-value { font-size: 14px; color: #1a1a1a; font-weight: 500; text-align: right; flex: 1; }
 .row-value.field-empty { color: #b91c1c; background: #fef2f2; border-radius: 4px; padding: 2px 8px; }
 .row-value.field-unverified { color: #92400e; background: #fffbeb; border-radius: 4px; padding: 2px 8px; }
 .row-value.field-gps { color: #1a6027; background: #e3fcef; border-radius: 4px; padding: 2px 8px; font-size: 12px; }
-.row-input {
-  font-size: 14px; color: #1a1a1a; font-weight: 500; text-align: right; flex: 1;
-  border: 0.5px solid #a78bfa; border-radius: 6px; padding: 4px 8px;
-  outline: none; font-family: inherit; background: #f5f3ff;
-  cursor: text;
-}
+.row-input { font-size: 14px; color: #1a1a1a; font-weight: 500; text-align: right; flex: 1; border: 0.5px solid #a78bfa; border-radius: 6px; padding: 4px 8px; outline: none; font-family: inherit; background: #f5f3ff; cursor: text; min-width: 0; }
 .row-input:focus { border-color: #7c3aed; background: #fff; box-shadow: 0 0 0 2px rgba(124,58,237,0.1); }
+.row-select { font-size: 13px; color: #1a1a1a; font-weight: 500; flex: 1; border: 0.5px solid #a78bfa; border-radius: 6px; padding: 5px 8px; outline: none; font-family: inherit; background: #f5f3ff; cursor: pointer; min-width: 0; }
+.row-select:focus { border-color: #7c3aed; background: #fff; }
 .edit-hint { font-size: 10px; color: #a78bfa; margin-left: 4px; white-space: nowrap; flex-shrink: 0; }
+.suggest-hint { font-size: 11px; color: #7c3aed; padding: 2px 0 4px; width: 100%; text-align: right; }
 .btn-add { font-size: 11px; padding: 3px 10px; border: 0.5px solid #d97706; color: #d97706; background: transparent; border-radius: 99px; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
 .btn-add:hover { background: #fffbeb; }
 .steps { font-size: 13px; color: #555; line-height: 2; }
@@ -201,7 +199,7 @@ const SECTIONS = [
     title: '3.8 Місце закінчення (доставки)',
     fields: [
       { key: 'delivery_place', label: 'Місце доставки' },
-      { key: 'border_crossing', label: 'Місце перетину кордону' },
+      { key: 'border_crossing', label: 'Місце перетину кордону', select: true },
     ]
   },
   {
@@ -221,23 +219,94 @@ const SECTIONS = [
 ];
 
 const EDITABLE_KEYS = ['loading_date', 'end_date', 'loading_place'];
-
-const ADD_TYPE = {
-  sender_name: 'sender',
-  receiver_name: 'receiver',
-  truck_number: 'vehicle',
-};
+const ADD_TYPE = { sender_name: 'sender', receiver_name: 'receiver', truck_number: 'vehicle' };
 
 let lastData = {};
 let selectedFile = null;
 let modalType = null;
+let borderCrossings = [];
 let trips = JSON.parse(localStorage.getItem('trips') || '[]');
+let borderStats = JSON.parse(localStorage.getItem('borderStats') || '{}');
+
+// Завантажуємо каталог перетинів
+async function loadBorderCrossings() {
+  try {
+    const resp = await fetch('/border-crossings');
+    if (resp.ok) borderCrossings = await resp.json();
+  } catch(e) {
+    // fallback
+    borderCrossings = [
+      {"name": "Medyka - Szeginie", "road": "DK28"},
+      {"name": "Dorohusk - Jagodzin", "road": "DK12"},
+      {"name": "Korczowa - Krakowiec", "road": "DK94"},
+      {"name": "Hrebenne - Rawa Ruska", "road": "DK17"},
+      {"name": "Zosin - Ustiług", "road": "S74"},
+      {"name": "Dołhobyczów - Uhrynów", "road": "DW844"},
+      {"name": "Jędrzychowice - Ludwigsdorf", "road": "A4"},
+      {"name": "Kołbaskowo - Pomellen", "road": "A6"},
+      {"name": "Olszyna - Forst", "road": "DK18"},
+      {"name": "Świecko - Frankfurt nO", "road": "A2(E30)"},
+      {"name": "Budzisko - Kalwaria", "road": "DK8"},
+    ];
+  }
+}
+
+// Логіка навчання — підбір пункту перетину
+function suggestBorderCrossing(data) {
+  const sender = data.sender_name || '';
+  const loadC = (data.loading_country || '').toLowerCase();
+  const delivC = (data.delivery_country || '').toLowerCase();
+  const key = `${sender}__${loadC}__${delivC}`;
+
+  // Шукаємо по відправнику + маршруту
+  if (borderStats[key]) {
+    const sorted = Object.entries(borderStats[key]).sort((a,b) => b[1]-a[1]);
+    if (sorted.length > 0) return { crossing: sorted[0][0], reason: 'на основі попередніх рейсів' };
+  }
+
+  // Шукаємо тільки по маршруту
+  const routeKey = `__${loadC}__${delivC}`;
+  if (borderStats[routeKey]) {
+    const sorted = Object.entries(borderStats[routeKey]).sort((a,b) => b[1]-a[1]);
+    if (sorted.length > 0) return { crossing: sorted[0][0], reason: 'на основі маршруту' };
+  }
+
+  // За замовчуванням для UA-PL маршрутів
+  if ((loadC.includes('ukrain') || loadC.includes('ua')) ||
+      (delivC.includes('ukrain') || delivC.includes('ua'))) {
+    return { crossing: 'Medyka - Szeginie', reason: 'за замовчуванням UA-PL' };
+  }
+
+  return null;
+}
+
+// Зберігаємо статистику після вибору
+function saveBorderStat(data, crossing) {
+  const sender = data.sender_name || '';
+  const loadC = (data.loading_country || '').toLowerCase();
+  const delivC = (data.delivery_country || '').toLowerCase();
+
+  const key1 = `${sender}__${loadC}__${delivC}`;
+  const key2 = `__${loadC}__${delivC}`;
+
+  [key1, key2].forEach(key => {
+    if (!borderStats[key]) borderStats[key] = {};
+    borderStats[key][crossing] = (borderStats[key][crossing] || 0) + 1;
+  });
+
+  localStorage.setItem('borderStats', JSON.stringify(borderStats));
+}
 
 function syncEditableFields() {
   EDITABLE_KEYS.forEach(key => {
     const el = document.getElementById('edit-' + key);
     if (el) lastData[key] = el.value;
   });
+  const sel = document.getElementById('select-border_crossing');
+  if (sel) {
+    lastData.border_crossing = sel.value;
+    saveBorderStat(lastData, sel.value);
+  }
 }
 
 function switchTab(tab) {
@@ -262,8 +331,7 @@ function saveTrip() {
     sender: lastData.sender_name || '—',
     receiver: lastData.receiver_name || '—',
     date: lastData.loading_date || new Date().toLocaleDateString('uk'),
-    status: 'new',
-    rmpd: '',
+    status: 'new', rmpd: '',
     data: { ...lastData },
     created: new Date().toLocaleString('uk')
   };
@@ -381,6 +449,8 @@ function showResult(data) {
     truck_number: data.vehicle_verified,
   };
 
+  const suggestion = suggestBorderCrossing(data);
+
   let html = '';
   for (const section of SECTIONS) {
     html += `<div class="section-title">${section.title}</div>`;
@@ -391,17 +461,34 @@ function showResult(data) {
       const isGps = field.gps && !isEmpty;
       const displayVal = isEmpty ? '' : val;
 
-      if (field.editable) {
+      if (field.select) {
+        // Випадаючий список перетинів
+        const suggested = suggestion ? suggestion.crossing : (displayVal || '');
+        const options = borderCrossings.map(bc =>
+          `<option value="${bc.name}" ${bc.name === suggested ? 'selected' : ''}>${bc.name} (${bc.road})</option>`
+        ).join('');
+        const suggestText = suggestion
+          ? `<div class="suggest-hint">💡 ${suggestion.reason}</div>`
+          : '';
+        html += `<div class="row">
+          <span class="row-label">${field.label}</span>
+          <select class="row-select" id="select-border_crossing" onchange="lastData['border_crossing']=this.value;saveBorderStat(lastData,this.value)">
+            <option value="">— оберіть —</option>
+            ${options}
+          </select>
+        </div>${suggestText}`;
+        // Встановлюємо значення в lastData
+        if (suggested) lastData.border_crossing = suggested;
+      } else if (field.editable) {
         const isPoland = field.hint && (data.loading_country || '').toLowerCase().includes('pol');
         const plHint = isPoland
-          ? `<div style="font-size:11px;color:#7c3aed;padding:2px 0 4px;text-align:right">⚠ Польща: вкажи вулицю, місто, індекс, воєводство</div>`
+          ? `<div class="suggest-hint">⚠ Польща: вкажи вулицю, місто, індекс, воєводство</div>`
           : '';
-        html += `<div class="row" style="flex-wrap:wrap">
+        html += `<div class="row">
           <span class="row-label">${field.label}</span>
           <input class="row-input" id="edit-${field.key}" value="${displayVal}" placeholder="введіть вручну" oninput="lastData['${field.key}']=this.value">
           <span class="edit-hint">✎</span>
-          ${plHint ? `</div><div style="padding:0 0 4px">${plHint}` : ''}
-        </div>`;
+        </div>${plHint}`;
       } else {
         const errClass = isEmpty ? ' field-empty' : isUnverified ? ' field-unverified' : isGps ? ' field-gps' : '';
         const addBtn = isUnverified && ADD_TYPE[field.key]
@@ -506,7 +593,9 @@ function setStatus(type, msg) {
   document.getElementById('status').innerHTML = `<div class="status ${type}">${msg}</div>`;
 }
 
+// Init
 updateTripCount();
+loadBorderCrossings();
 </script>
 </body>
 </html>
