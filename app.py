@@ -33,7 +33,6 @@ def find_in_catalog(name, catalog):
     if not name:
         return None
     name_upper = name.upper().strip()
-    # Точне або часткове співпадіння назви
     for item in catalog:
         cat_name = item['name'].upper()
         if cat_name in name_upper or name_upper in cat_name:
@@ -114,26 +113,27 @@ PROMPT = """Це міжнародна товарно-транспортна на
 
 Поле 1 (лівий верх) = ВІДПРАВНИК: назва + адреса + країна
 Поле 2 (під полем 1) = ОДЕРЖУВАЧ: назва + юридична адреса + країна
-Поле 3 (під полем 2) = АДРЕСА СКЛАДУ ДОСТАВКИ: фактична адреса куди везуть вантаж
+Поле 3 (під полем 2) = МІСЦЕ ДОСТАВКИ: фактична адреса складу куди везуть вантаж (інша ніж юридична адреса одержувача)
 Поле 4 = МІСЦЕ І ДАТА ЗАВАНТАЖЕННЯ: місто, країна, дата завантаження
-Поле 16 = ПЕРЕВІЗНИК (завжди TZOV SMART TRANS HRUP)
-Поле 17 або 22 = НОМЕРИ АВТО І ПРИЧЕПА (повністю всі літери і цифри)
-Поле 21 = ДАТА CMR
+Поле 16 (правий верх, печатка) = ПЕРЕВІЗНИК — завжди TZOV SMART TRANS HRUP. НЕ плутати з відправником чи одержувачем!
+Поле 17 або 22 (внизу де підпис перевізника і печатка) = НОМЕРИ АВТО І ПРИЧЕПА
+Поле 21 = ДАТА CMR і місце складання
 
-ПРАВИЛА:
-1. receiver_name — назва з поля 2
-2. receiver_address — юридична адреса з поля 2 (разом з назвою одержувача)
-3. delivery_place — адреса з поля 3 (фактичне місце доставки вантажу)
-4. sender_name — назва з поля 1
-5. sender_address — адреса з поля 1
-6. loading_place — місто з поля 4
-7. loading_date — дата з поля 4
-8. cmr_date — дата з поля 21
-9. Номери авто — ПОВНІСТЮ великими без пробілів (AC1566EO не AC1566)
-10. Умови оплати (DAP/FOB/EXW/FCA) — не є місцем, ігноруй
-11. transport_type — "Transport dwustronny" якщо різні країни; "Transport tranzytowy" якщо через Польщу транзитом
-12. border_crossing — "Medyka - Szeginie" для UA-PL маршрутів. Якщо невідомо — порожній рядок.
-13. end_date — дата закінчення якщо є, інакше порожній рядок
+КРИТИЧНІ ПРАВИЛА:
+1. sender_name, sender_address — ТІЛЬКИ з поля 1
+2. receiver_name — ТІЛЬКИ назва з поля 2
+3. receiver_address — юридична адреса з поля 2 (разом з назвою одержувача в полі 2)
+4. delivery_place — адреса з поля 3 (фактичне місце доставки). Поле 3 знаходиться ПІД полем 2 одержувача.
+5. loading_place — місто з поля 4. НЕ адреса перевізника з поля 16!
+6. loading_date — дата з поля 4
+7. cmr_date — дата з поля 21
+8. Поле 16 = ТІЛЬКИ перевізник (TZOV SMART TRANS HRUP). Адреса з поля 16 НЕ є місцем завантаження і НЕ є адресою одержувача!
+9. Номери авто — ПОВНІСТЮ великими без пробілів (AC1566EO не AC1566). Читай з поля 17 або з підпису внизу (поле 22).
+10. transport_type:
+    - Якщо Польща є країною завантаження АБО країною доставки → "Transport dwustronny"
+    - Якщо Польща НЕ є ні відправником ні отримувачем (наприклад UA→DE, UA→UK) → "Transport tranzytowy"
+11. border_crossing — порожній рядок (визначається окремо)
+12. end_date — порожній рядок якщо немає в документі
 
 JSON:
 {
@@ -156,6 +156,7 @@ JSON:
 }
 
 Якщо поле не знайдено — порожній рядок."""
+
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
@@ -164,6 +165,11 @@ def index():
 def health():
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     return jsonify({"ok": True, "key": len(key)})
+
+@app.route('/border-crossings')
+def border_crossings():
+    data = load_catalog('border_crossings.json')
+    return jsonify(data)
 
 @app.route('/extract', methods=['POST'])
 def extract():
